@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabaseClient.js";
-import { getReviewPageUrlForQr } from "../lib/appBaseUrl.js";
+import { getPublicAppBaseUrl, getReviewPageUrlForQr } from "../lib/appBaseUrl.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Dashboard() {
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [dataError, setDataError] = useState("");
   const [formError, setFormError] = useState("");
   const [lastAddedId, setLastAddedId] = useState(null);
+  const [pdfBusyId, setPdfBusyId] = useState(null);
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -99,6 +100,25 @@ export default function Dashboard() {
     if (nested && typeof nested === "object" && nested.name) return nested.name;
     const r = restaurants.find((x) => x.id === row.restaurant_id);
     return r?.name || "Restaurant";
+  }
+
+  async function handleDownloadPdf(r, reviewUrl) {
+    if (!reviewUrl?.trim()) return;
+    setPdfBusyId(r.id);
+    try {
+      const { downloadReviewBoostRestaurantPdf } = await import(
+        "../lib/generateReviewQrPdf.jsx"
+      );
+      await downloadReviewBoostRestaurantPdf({
+        restaurantName: r.name,
+        reviewUrl,
+        siteUrl: getPublicAppBaseUrl() || window.location.origin,
+      });
+    } catch (err) {
+      alert(err?.message || "Could not generate PDF. Try again.");
+    } finally {
+      setPdfBusyId(null);
+    }
   }
 
   return (
@@ -215,7 +235,8 @@ export default function Dashboard() {
                       }`}
                     >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                        <div className="flex shrink-0 justify-center rounded-2xl bg-white p-3 shadow-md ring-1 ring-stone-100">
+                        <div className="flex shrink-0 flex-row flex-wrap items-start gap-3">
+                          <div className="rounded-2xl bg-white p-3 shadow-md ring-1 ring-stone-100">
                           {scanUrl ? (
                             <QRCodeSVG
                               value={scanUrl}
@@ -227,9 +248,35 @@ export default function Dashboard() {
                             />
                           ) : (
                             <div className="flex size-[140px] flex-col items-center justify-center gap-2 rounded-xl bg-stone-100 p-3 text-center text-xs font-medium text-stone-600">
-                              QR tab banega jab base phone-open ho (Wi‑Fi IP / domain save karo)
+                              QR tab banega jab public URL set ho (
+                              <code className="rounded bg-white px-0.5">VITE_PUBLIC_APP_URL</code> build ke waqt).
                             </div>
                           )}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={Boolean(pdfBusyId) || !(scanUrl || laptopTestUrl)}
+                            onClick={() =>
+                              handleDownloadPdf(r, scanUrl || laptopTestUrl)
+                            }
+                            className="inline-flex min-h-10 items-center justify-center gap-2 self-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c] disabled:cursor-not-allowed disabled:opacity-60 sm:self-start"
+                          >
+                            <svg
+                              className="h-4 w-4 shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              aria-hidden
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                              />
+                            </svg>
+                            {pdfBusyId === r.id ? "Generating…" : "Download PDF"}
+                          </button>
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-stone-900">{r.name}</p>
@@ -238,8 +285,12 @@ export default function Dashboard() {
                               scanUrl
                             ) : (
                               <>
-                                <span className="text-amber-800">Phone link: save URL ↑ first. </span>
-                                <span className="text-stone-400">This PC: {laptopTestUrl}</span>
+                                <span className="text-amber-800">
+                                  Phone ke liye:{" "}
+                                  <code className="rounded bg-stone-100 px-1">VITE_PUBLIC_APP_URL</code>{" "}
+                                  set karke site dubara deploy karo.{" "}
+                                </span>
+                                <span className="text-stone-400">Is PC par test: {laptopTestUrl}</span>
                               </>
                             )}
                           </p>
