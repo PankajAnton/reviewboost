@@ -1,16 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabaseClient.js";
-import {
-  clearStoredPublicAppUrl,
-  getPublicAppBaseUrl,
-  getReviewPageUrlForQr,
-  isLocalhostDev,
-  isLoopbackBaseUrl,
-  PUBLIC_APP_URL_STORAGE_KEY,
-  setStoredPublicAppUrl,
-} from "../lib/appBaseUrl.js";
+import { getReviewPageUrlForQr } from "../lib/appBaseUrl.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Dashboard() {
@@ -24,10 +16,6 @@ export default function Dashboard() {
   const [dataError, setDataError] = useState("");
   const [formError, setFormError] = useState("");
   const [lastAddedId, setLastAddedId] = useState(null);
-  /** Bump so QR URLs re-read localStorage after save */
-  const [qrBaseTick, setQrBaseTick] = useState(0);
-  const [phoneReachableUrl, setPhoneReachableUrl] = useState("");
-  const [phoneUrlError, setPhoneUrlError] = useState("");
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -67,37 +55,6 @@ export default function Dashboard() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PUBLIC_APP_URL_STORAGE_KEY);
-      setPhoneReachableUrl(raw || "");
-    } catch {
-      setPhoneReachableUrl("");
-    }
-  }, []);
-
-  const qrBaseUrl = useMemo(() => getPublicAppBaseUrl(), [qrBaseTick]);
-
-  function handleSavePhoneUrl(e) {
-    e.preventDefault();
-    setPhoneUrlError("");
-    try {
-      setStoredPublicAppUrl(phoneReachableUrl);
-      setQrBaseTick((n) => n + 1);
-    } catch (err) {
-      setPhoneUrlError(err.message || "Invalid URL");
-    }
-  }
-
-  function handleClearPhoneUrl() {
-    clearStoredPublicAppUrl();
-    setPhoneReachableUrl("");
-    setPhoneUrlError("");
-    setQrBaseTick((n) => n + 1);
-  }
-
-  const onLocalhost = isLocalhostDev();
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -225,76 +182,6 @@ export default function Dashboard() {
             <p className="mt-1 text-sm text-stone-600">
               Scan opens your branded review flow for that location.
             </p>
-            <div
-              className={`mt-3 rounded-2xl p-4 text-xs leading-relaxed ring-1 ${
-                onLocalhost
-                  ? "bg-red-50 text-red-950 ring-red-200"
-                  : "bg-amber-50/90 text-amber-950 ring-amber-100"
-              }`}
-            >
-              <p className="font-semibold">
-                {onLocalhost
-                  ? "Localhost = phone scan par error"
-                  : "QR link base"}
-              </p>
-              {onLocalhost ? (
-                <>
-                  <p className="mt-2">
-                    QR mein <code className="rounded bg-white px-1">localhost</code> aata hai to
-                    phone kholne par error aayega. Neeche apne PC ka{" "}
-                    <strong>Wi‑Fi IP + port</strong> daalo (same network).
-                  </p>
-                  <p className="mt-1">
-                    Terminal: <code className="rounded bg-white px-1">npm run dev:host</code> — jo{" "}
-                    <code className="rounded bg-white px-1">Network:</code> URL dikhe (e.g.{" "}
-                    <code className="rounded bg-white px-1">http://192.168.1.5:5173</code>) wahi paste karo.
-                  </p>
-                  <form onSubmit={handleSavePhoneUrl} className="mt-3 space-y-2">
-                    <label className="block font-medium text-red-900/90">
-                      Phone-open URL (no trailing slash)
-                    </label>
-                    <input
-                      value={phoneReachableUrl}
-                      onChange={(e) => setPhoneReachableUrl(e.target.value)}
-                      placeholder="http://192.168.1.5:5173"
-                      className="w-full min-h-12 rounded-2xl border border-red-200 bg-white px-4 text-sm text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
-                    />
-                    {phoneUrlError ? (
-                      <p className="text-sm text-red-700">{phoneUrlError}</p>
-                    ) : null}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button
-                        type="submit"
-                        className="min-h-11 rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#ea580c]"
-                      >
-                        Save & refresh QR
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleClearPhoneUrl}
-                        className="min-h-11 rounded-2xl bg-white px-4 text-sm font-semibold text-red-800 ring-1 ring-red-200 hover:bg-red-50"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </form>
-                </>
-              ) : (
-                <p className="mt-1">
-                  Deployed app par QR aapke domain se automatically banega. Local test ke liye{" "}
-                  <code className="rounded bg-white px-1">VITE_PUBLIC_APP_URL</code> ya browser save (localhost par jo box hai) use karo.
-                </p>
-              )}
-              <p className="mt-3 font-mono text-[11px] text-stone-600 break-all">
-                Ab QR base: {qrBaseUrl || "(empty)"}
-                {isLoopbackBaseUrl(qrBaseUrl) ? (
-                  <span className="mt-1 block font-sans text-amber-800">
-                    → Phone scan ke liye abhi usable nahi — upar Wi‑Fi URL save karo ya production domain (
-                    <code className="rounded bg-white px-1">VITE_PUBLIC_APP_URL</code>).
-                  </span>
-                ) : null}
-              </p>
-            </div>
 
             {loadingData ? (
               <div className="mt-8 flex flex-col items-center gap-3 py-10">
