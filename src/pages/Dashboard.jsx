@@ -58,6 +58,10 @@ export default function Dashboard() {
   }, [loadAll]);
 
   async function handleLogout() {
+    const ok = window.confirm(
+      "Are you sure you want to log out? You will need to sign in again to use the dashboard."
+    );
+    if (!ok) return;
     await supabase.auth.signOut();
   }
 
