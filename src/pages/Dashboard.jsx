@@ -280,20 +280,6 @@ export default function Dashboard() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-stone-900">{r.name}</p>
-                          <p className="mt-1 break-all text-xs text-stone-500">
-                            {scanUrl ? (
-                              scanUrl
-                            ) : (
-                              <>
-                                <span className="text-amber-800">
-                                  Phone ke liye:{" "}
-                                  <code className="rounded bg-stone-100 px-1">VITE_PUBLIC_APP_URL</code>{" "}
-                                  set karke site dubara deploy karo.{" "}
-                                </span>
-                                <span className="text-stone-400">Is PC par test: {laptopTestUrl}</span>
-                              </>
-                            )}
-                          </p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <a
                               href={scanUrl || laptopTestUrl}

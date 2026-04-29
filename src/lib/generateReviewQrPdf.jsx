@@ -194,60 +194,62 @@ export async function downloadReviewBoostRestaurantPdf({
   document.body.appendChild(host);
 
   const root = createRoot(host);
-  root.render(
-    <A4Poster
-      restaurantName={restaurantName}
-      reviewUrl={reviewUrl}
-      siteUrl={siteUrl || window.location.origin}
-    />
-  );
 
-  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-  await new Promise((r) => setTimeout(r, 200));
+  try {
+    root.render(
+      <A4Poster
+        restaurantName={restaurantName}
+        reviewUrl={reviewUrl}
+        siteUrl={siteUrl || window.location.origin}
+      />
+    );
 
-  if (!posterEl) {
-    root.unmount();
-    document.body.removeChild(host);
-    throw new Error("Could not build poster for PDF.");
-  }
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise((r) => setTimeout(r, 200));
 
-  const qrRoot = posterEl.querySelector("[data-pdf-qr-root]");
-  if (qrRoot) {
-    await html2canvas(qrRoot, {
+    const posterEl = host.querySelector("#reviewboost-pdf-poster");
+    if (!posterEl) {
+      throw new Error("Could not build poster for PDF.");
+    }
+
+    const qrRoot = posterEl.querySelector("[data-pdf-qr-root]");
+    if (qrRoot) {
+      await html2canvas(qrRoot, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+    }
+
+    const canvas = await html2canvas(posterEl, {
       scale: 3,
       useCORS: true,
       backgroundColor: "#ffffff",
       logging: false,
+      windowWidth: 794,
     });
+
+    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgData = canvas.toDataURL("image/png", 1.0);
+
+    const imgW = canvas.width;
+    const imgH = canvas.height;
+    const ratio = imgW / imgH;
+    let drawW = pageW;
+    let drawH = pageW / ratio;
+    if (drawH > pageH) {
+      drawH = pageH;
+      drawW = pageH * ratio;
+    }
+    const offsetX = (pageW - drawW) / 2;
+    const offsetY = (pageH - drawH) / 2;
+    pdf.addImage(imgData, "PNG", offsetX, offsetY, drawW, drawH);
+    pdf.save(`ReviewBoost-${sanitizeFilename(restaurantName)}.pdf`);
+  } finally {
+    root.unmount();
+    document.body.removeChild(host);
   }
-
-  const canvas = await html2canvas(posterEl, {
-    scale: 3,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-    windowWidth: 794,
-  });
-
-  const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const imgData = canvas.toDataURL("image/png", 1.0);
-
-  const imgW = canvas.width;
-  const imgH = canvas.height;
-  const ratio = imgW / imgH;
-  let drawW = pageW;
-  let drawH = pageW / ratio;
-  if (drawH > pageH) {
-    drawH = pageH;
-    drawW = pageH * ratio;
-  }
-  const offsetX = (pageW - drawW) / 2;
-  const offsetY = (pageH - drawH) / 2;
-  pdf.addImage(imgData, "PNG", offsetX, offsetY, drawW, drawH);
-  pdf.save(`ReviewBoost-${sanitizeFilename(restaurantName)}.pdf`);
-
-  root.unmount();
-  document.body.removeChild(host);
 }
