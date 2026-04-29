@@ -26,13 +26,13 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "stretch",
-        fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+        fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif",
       }}
     >
       <div
         style={{
           background: ORANGE,
-          color: "#fff",
+          color: "#ffffff",
           padding: "28px 32px",
           textAlign: "center",
         }}
@@ -42,6 +42,7 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
             fontSize: "28px",
             fontWeight: 700,
             letterSpacing: "-0.02em",
+            color: "#ffffff",
           }}
         >
           ReviewBoost
@@ -52,6 +53,7 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
             fontWeight: 500,
             opacity: 0.95,
             marginTop: "8px",
+            color: "#ffffff",
           }}
         >
           Smart Reviews for Smart Restaurants
@@ -93,7 +95,7 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
           <div
             style={{
               padding: "16px",
-              background: "#fff",
+              background: "#ffffff",
               borderRadius: "16px",
               boxShadow: "0 8px 28px rgba(0,0,0,0.08)",
             }}
@@ -145,7 +147,7 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
       <div
         style={{
           background: ORANGE,
-          color: "#fff",
+          color: "#ffffff",
           padding: "22px 32px",
           textAlign: "center",
         }}
@@ -155,6 +157,7 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
             fontSize: "13px",
             fontWeight: 600,
             wordBreak: "break-all",
+            color: "#ffffff",
           }}
         >
           {siteUrl}
@@ -164,6 +167,7 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
             fontSize: "11px",
             marginTop: "8px",
             opacity: 0.92,
+            color: "#ffffff",
           }}
         >
           Powered by ReviewBoost
@@ -173,8 +177,22 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
   );
 }
 
+function writePdfIframeShell(doc) {
+  doc.open();
+  doc.write(
+    "<!DOCTYPE html><html><head><meta charset=\"utf-8\">" +
+      "<style>" +
+      "*{box-sizing:border-box}" +
+      "html,body{margin:0;padding:0;background:#ffffff;color:#1c1917}" +
+      "</style>" +
+      "</head><body><div id=\"rb-pdf-root\"></div></body></html>"
+  );
+  doc.close();
+}
+
 /**
- * Renders a print-ready A4 poster off-screen, captures with html2canvas (includes QR), saves PDF.
+ * Renders the poster inside a blank iframe so html2canvas never parses the main app’s
+ * Tailwind oklch() styles (which break html2canvas).
  */
 export async function downloadReviewBoostRestaurantPdf({
   restaurantName,
@@ -185,15 +203,28 @@ export async function downloadReviewBoostRestaurantPdf({
     throw new Error("Review link missing — set VITE_PUBLIC_APP_URL and redeploy.");
   }
 
-  const host = document.createElement("div");
-  host.setAttribute("aria-hidden", "true");
-  host.style.position = "fixed";
-  host.style.left = "-12000px";
-  host.style.top = "0";
-  host.style.zIndex = "-1";
-  document.body.appendChild(host);
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.title = "pdf-render";
+  iframe.style.cssText =
+    "position:fixed;left:-12000px;top:0;width:820px;height:1200px;border:0;opacity:0;pointer-events:none;";
+  document.body.appendChild(iframe);
 
-  const root = createRoot(host);
+  const doc = iframe.contentDocument;
+  const iWin = iframe.contentWindow;
+  if (!doc || !iWin) {
+    document.body.removeChild(iframe);
+    throw new Error("Could not create PDF frame.");
+  }
+
+  writePdfIframeShell(doc);
+  const mount = doc.getElementById("rb-pdf-root");
+  if (!mount) {
+    document.body.removeChild(iframe);
+    throw new Error("PDF mount missing.");
+  }
+
+  const root = createRoot(mount);
 
   try {
     root.render(
@@ -204,25 +235,18 @@ export async function downloadReviewBoostRestaurantPdf({
       />
     );
 
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) =>
+      iWin.requestAnimationFrame(() => iWin.requestAnimationFrame(r))
+    );
+    await new Promise((r) => setTimeout(r, 300));
 
-    const posterEl = host.querySelector("#reviewboost-pdf-poster");
+    const posterEl = doc.getElementById("reviewboost-pdf-poster");
     if (!posterEl) {
       throw new Error("Could not build poster for PDF.");
     }
 
-    const qrRoot = posterEl.querySelector("[data-pdf-qr-root]");
-    if (qrRoot) {
-      await html2canvas(qrRoot, {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
-    }
-
     const canvas = await html2canvas(posterEl, {
+      window: iWin,
       scale: 3,
       useCORS: true,
       backgroundColor: "#ffffff",
@@ -250,6 +274,6 @@ export async function downloadReviewBoostRestaurantPdf({
     pdf.save(`ReviewBoost-${sanitizeFilename(restaurantName)}.pdf`);
   } finally {
     root.unmount();
-    document.body.removeChild(host);
+    iframe.remove();
   }
 }

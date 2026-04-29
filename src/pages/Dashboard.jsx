@@ -228,14 +228,14 @@ export default function Dashboard() {
                   return (
                     <li
                       key={r.id}
-                      className={`rounded-2xl p-4 ring-1 transition ${
+                      className={`rounded-2xl p-5 ring-1 transition sm:p-6 ${
                         highlight
                           ? "bg-amber-50/80 ring-[#f97316]/50 shadow-md"
                           : "bg-stone-50/50 ring-stone-200/80"
                       }`}
                     >
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                        <div className="flex shrink-0 flex-row flex-wrap items-start gap-3">
+                      <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-8">
+                        <div className="flex w-full shrink-0 justify-center sm:w-auto sm:justify-start">
                           <div className="rounded-2xl bg-white p-3 shadow-md ring-1 ring-stone-100">
                           {scanUrl ? (
                             <QRCodeSVG
@@ -253,49 +253,44 @@ export default function Dashboard() {
                             </div>
                           )}
                           </div>
-                          <button
-                            type="button"
-                            disabled={Boolean(pdfBusyId) || !(scanUrl || laptopTestUrl)}
-                            onClick={() =>
-                              handleDownloadPdf(r, scanUrl || laptopTestUrl)
-                            }
-                            className="inline-flex min-h-10 items-center justify-center gap-2 self-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c] disabled:cursor-not-allowed disabled:opacity-60 sm:self-start"
-                          >
-                            <svg
-                              className="h-4 w-4 shrink-0"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              aria-hidden
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                              />
-                            </svg>
-                            {pdfBusyId === r.id ? "Generating…" : "Download PDF"}
-                          </button>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-stone-900">{r.name}</p>
-                          <div className="mt-3 flex flex-wrap gap-2">
+
+                        <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-4 sm:items-stretch">
+                          <p className="text-center text-lg font-bold tracking-tight text-stone-900 sm:text-left">
+                            {r.name}
+                          </p>
+                          <div className="flex w-full max-w-md flex-col gap-2 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
+                            <button
+                              type="button"
+                              disabled={Boolean(pdfBusyId) || !(scanUrl || laptopTestUrl)}
+                              onClick={() =>
+                                handleDownloadPdf(r, scanUrl || laptopTestUrl)
+                              }
+                              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[10rem]"
+                            >
+                              <svg
+                                className="h-4 w-4 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                aria-hidden
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                />
+                              </svg>
+                              {pdfBusyId === r.id ? "Generating…" : "Download PDF"}
+                            </button>
                             <a
                               href={scanUrl || laptopTestUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex min-h-10 items-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                              className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-white px-4 text-sm font-semibold text-[#f97316] shadow-sm ring-1 ring-[#f97316]/35 transition hover:bg-amber-50 sm:w-auto sm:min-w-[10rem]"
                             >
                               {scanUrl ? "Test review page" : "Open on this PC"}
-                            </a>
-                            <a
-                              href={r.google_maps_link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex min-h-10 items-center rounded-2xl bg-stone-100 px-4 text-sm font-medium text-stone-800 transition hover:bg-stone-200"
-                            >
-                              Maps link →
                             </a>
                           </div>
                         </div>
