@@ -1,11 +1,27 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient.js";
 import PasswordField from "../components/PasswordField.jsx";
 import { LogoDark } from "../components/Logo.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+
+function AuthShellLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-amber-50/80 to-stone-50 px-4">
+      <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-10 py-12 shadow-md ring-1 ring-stone-100">
+        <div
+          className="h-10 w-10 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent"
+          aria-hidden
+        />
+        <p className="text-sm font-medium text-stone-600">Checking session…</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -117,6 +133,13 @@ export default function Signup() {
       return;
     }
     setInfo("A new code has been sent to your email.");
+  }
+
+  if (authLoading) {
+    return <AuthShellLoader />;
+  }
+  if (session) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

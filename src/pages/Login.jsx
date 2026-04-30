@@ -1,12 +1,28 @@
 import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient.js";
 import PasswordField from "../components/PasswordField.jsx";
 import { LogoDark } from "../components/Logo.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+
+function AuthShellLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-amber-50/80 to-stone-50 px-4">
+      <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-10 py-12 shadow-md ring-1 ring-stone-100">
+        <div
+          className="h-10 w-10 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent"
+          aria-hidden
+        />
+        <p className="text-sm font-medium text-stone-600">Checking session…</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { session, loading: authLoading } = useAuth();
   const from = location.state?.from?.pathname || "/dashboard";
 
   const [email, setEmail] = useState("");
@@ -28,6 +44,13 @@ export default function Login() {
       return;
     }
     navigate(from, { replace: true });
+  }
+
+  if (authLoading) {
+    return <AuthShellLoader />;
+  }
+  if (session) {
+    return <Navigate to={from} replace />;
   }
 
   return (

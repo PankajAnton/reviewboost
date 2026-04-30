@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { LogoDark } from "../components/Logo.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const features = [
   {
@@ -38,6 +39,8 @@ const tiers = [
 ];
 
 export default function Landing() {
+  const { session, loading: authLoading } = useAuth();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/80 via-stone-50 to-white">
       <header className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-6">
@@ -49,19 +52,30 @@ export default function Landing() {
           <LogoDark size="nav" />
         </Link>
         <nav className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
-          <Link
-            to="/login"
-            className="inline-flex min-h-0 flex-1 items-center justify-center rounded-xl px-3 py-2.5 text-center text-sm font-medium leading-snug text-stone-700 transition hover:bg-white/80 hover:shadow-md sm:flex-none sm:px-4 sm:py-2.5"
-          >
-            Log in
-          </Link>
-          <Link
-            to="/signup"
-            className="inline-flex min-h-0 flex-1 items-center justify-center rounded-xl bg-[#f97316] px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white shadow-sm transition hover:bg-[#ea580c] hover:shadow-md sm:flex-none sm:px-4 sm:py-2.5"
-          >
-            <span className="sm:hidden">Start free</span>
-            <span className="hidden sm:inline">Get Started Free</span>
-          </Link>
+          {authLoading ? null : session ? (
+            <Link
+              to="/dashboard"
+              className="inline-flex min-h-0 flex-1 items-center justify-center rounded-xl bg-[#f97316] px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white shadow-sm transition hover:bg-[#ea580c] hover:shadow-md sm:flex-none sm:px-4 sm:py-2.5"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="inline-flex min-h-0 flex-1 items-center justify-center rounded-xl px-3 py-2.5 text-center text-sm font-medium leading-snug text-stone-700 transition hover:bg-white/80 hover:shadow-md sm:flex-none sm:px-4 sm:py-2.5"
+              >
+                Log in
+              </Link>
+              <Link
+                to="/signup"
+                className="inline-flex min-h-0 flex-1 items-center justify-center rounded-xl bg-[#f97316] px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white shadow-sm transition hover:bg-[#ea580c] hover:shadow-md sm:flex-none sm:px-4 sm:py-2.5"
+              >
+                <span className="sm:hidden">Start free</span>
+                <span className="hidden sm:inline">Get Started Free</span>
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 

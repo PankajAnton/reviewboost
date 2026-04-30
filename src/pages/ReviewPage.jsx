@@ -87,7 +87,9 @@ export default function ReviewPage() {
 
   /** rate | promoter | detractor | doneHigh | doneLow */
   const [phase, setPhase] = useState("rate");
-  const [selectedTemplate, setSelectedTemplate] = useState("");
+  /** Index of preset card chosen in promoter flow (for highlight); draft holds editable text */
+  const [promoterPresetIndex, setPromoterPresetIndex] = useState(null);
+  const [promoterDraft, setPromoterDraft] = useState("");
   const [feedbackFood, setFeedbackFood] = useState("");
   const [feedbackService, setFeedbackService] = useState("");
   const [feedbackAtmosphere, setFeedbackAtmosphere] = useState("");
@@ -104,7 +106,8 @@ export default function ReviewPage() {
       setFood(0);
       setService(0);
       setAtmosphere(0);
-      setSelectedTemplate("");
+      setPromoterPresetIndex(null);
+      setPromoterDraft("");
       setFeedbackFood("");
       setFeedbackService("");
       setFeedbackAtmosphere("");
@@ -162,7 +165,8 @@ export default function ReviewPage() {
   function handleContinueFromRate() {
     if (!allRated || average == null) return;
     setActionError("");
-    setSelectedTemplate("");
+    setPromoterPresetIndex(null);
+    setPromoterDraft("");
     if (templates) {
       setPhase("promoter");
     } else {
@@ -207,11 +211,12 @@ export default function ReviewPage() {
 
   async function copyAndOpenMaps() {
     const avgCombined = (food + service + atmosphere) / 3;
-    if (!restaurant || !selectedTemplate) return;
+    const text = promoterDraft.trim();
+    if (!restaurant || !text) return;
     setActionError("");
     setSubmitting(true);
     try {
-      await navigator.clipboard.writeText(selectedTemplate);
+      await navigator.clipboard.writeText(text);
     } catch {
       setSubmitting(false);
       setActionError(
@@ -227,11 +232,11 @@ export default function ReviewPage() {
       service_stars: service,
       atmosphere_stars: atmosphere,
       overall_average: Math.round(avgCombined * 100) / 100,
-      selected_template: selectedTemplate,
+      selected_template: text,
       feedback_food: "",
       feedback_service: "",
       feedback_atmosphere: "",
-      feedback: selectedTemplate,
+      feedback: text,
     };
 
     const { error } = await supabase.from("reviews").insert(row);
@@ -347,7 +352,8 @@ export default function ReviewPage() {
                     Pick a review that sounds like you
                   </h2>
                   <p className="mt-2 text-sm text-stone-600">
-                    We&apos;ll copy it for Google — edit there if you like.
+                    Pick a starting point — then edit your review below before
+                    copying to Google.
                   </p>
                 </div>
 
@@ -357,11 +363,12 @@ export default function ReviewPage() {
                       key={idx}
                       type="button"
                       onClick={() => {
-                        setSelectedTemplate(text);
+                        setPromoterPresetIndex(idx);
+                        setPromoterDraft(text);
                         setActionError("");
                       }}
                       className={`rounded-2xl px-5 py-4 text-left text-sm leading-relaxed shadow-md ring-2 transition hover:shadow-lg ${
-                        selectedTemplate === text
+                        promoterPresetIndex === idx
                           ? "scale-[1.02] bg-amber-50 ring-[#f97316]"
                           : "bg-stone-50/90 ring-transparent ring-stone-200/80 hover:ring-[#f97316]/25"
                       }`}
@@ -371,16 +378,27 @@ export default function ReviewPage() {
                   ))}
                 </div>
 
-                {selectedTemplate ? (
-                  <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-[#ea580c]">
-                      Selected
+                {promoterPresetIndex !== null ? (
+                  <label className="block">
+                    <span className="text-sm font-bold text-stone-800">
+                      Your review — edit freely
+                    </span>
+                    <textarea
+                      value={promoterDraft}
+                      onChange={(e) => setPromoterDraft(e.target.value)}
+                      rows={6}
+                      className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base leading-relaxed text-stone-900 shadow-sm outline-none transition focus:border-[#f97316] focus:ring-4 focus:ring-[#f97316]/18"
+                      placeholder="Your words will be copied to Google Maps…"
+                    />
+                    <p className="mt-2 text-xs text-stone-500">
+                      {promoterDraft.trim().length} characters
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-stone-800">
-                      {selectedTemplate}
-                    </p>
-                  </div>
-                ) : null}
+                  </label>
+                ) : (
+                  <p className="text-center text-sm text-stone-500">
+                    Tap a suggestion above to edit and paste.
+                  </p>
+                )}
 
                 {actionError ? (
                   <p className="text-sm font-medium text-red-600" role="alert">
@@ -390,7 +408,7 @@ export default function ReviewPage() {
 
                 <button
                   type="button"
-                  disabled={!selectedTemplate || submitting}
+                  disabled={!promoterDraft.trim() || submitting}
                   onClick={copyAndOpenMaps}
                   className="flex min-h-[3rem] w-full items-center justify-center rounded-2xl bg-[#f97316] text-base font-bold text-white shadow-lg transition hover:bg-[#ea580c] disabled:opacity-50"
                 >
@@ -401,7 +419,8 @@ export default function ReviewPage() {
                   type="button"
                   onClick={() => {
                     setPhase("rate");
-                    setSelectedTemplate("");
+                    setPromoterPresetIndex(null);
+                    setPromoterDraft("");
                     setActionError("");
                   }}
                   className="w-full rounded-2xl py-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-50 hover:text-stone-800"
