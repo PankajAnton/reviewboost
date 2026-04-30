@@ -65,3 +65,13 @@ create policy "reviews_select_owner"
       where r.id = reviews.restaurant_id and r.owner_id = auth.uid()
     )
   );
+
+-- Owners can delete feedback for their venues only (dashboard)
+create policy "reviews_delete_owner"
+  on public.reviews for delete
+  using (
+    exists (
+      select 1 from public.restaurants r
+      where r.id = reviews.restaurant_id and r.owner_id = auth.uid()
+    )
+  );

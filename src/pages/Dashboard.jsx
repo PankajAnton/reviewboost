@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabaseClient.js";
@@ -18,6 +18,11 @@ export default function Dashboard() {
   const [formError, setFormError] = useState("");
   const [lastAddedId, setLastAddedId] = useState(null);
   const [pdfBusyId, setPdfBusyId] = useState(null);
+  /** "" = all locations */
+  const [feedbackRestaurantId, setFeedbackRestaurantId] = useState("");
+  const [feedbackType, setFeedbackType] = useState("all");
+  const [feedbackSearch, setFeedbackSearch] = useState("");
+  const [deletingReviewId, setDeletingReviewId] = useState(null);
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -125,6 +130,70 @@ export default function Dashboard() {
       setPdfBusyId(null);
     }
   }
+
+  async function handleDeleteReview(reviewId, restaurantLabel) {
+    const ok = window.confirm(
+      `Delete this feedback for "${restaurantLabel}"? This cannot be undone.`
+    );
+    if (!ok) return;
+    setDeletingReviewId(reviewId);
+    setDataError("");
+    const { error } = await supabase.from("reviews").delete().eq("id", reviewId);
+    setDeletingReviewId(null);
+    if (error) {
+      setDataError(error.message);
+      alert(
+        error.message ||
+          "Could not delete. Apply the Supabase migration for reviews_delete_owner."
+      );
+      return;
+    }
+    await loadAll();
+  }
+
+  const filteredReviews = useMemo(() => {
+    let list = [...reviews];
+
+    if (feedbackRestaurantId) {
+      list = list.filter((r) => r.restaurant_id === feedbackRestaurantId);
+    }
+
+    if (feedbackType === "promoter") {
+      list = list.filter((r) => r.stars >= 4);
+    } else if (feedbackType === "private") {
+      list = list.filter((r) => r.stars < 4);
+    }
+
+    const q = feedbackSearch.trim().toLowerCase();
+    if (q) {
+      list = list.filter((r) => {
+        const name =
+          typeof r.restaurants === "object" && r.restaurants?.name
+            ? r.restaurants.name
+            : restaurants.find((x) => x.id === r.restaurant_id)?.name || "";
+        const blob = [
+          name,
+          r.feedback,
+          r.feedback_food,
+          r.feedback_service,
+          r.feedback_atmosphere,
+          r.selected_template,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return blob.includes(q);
+      });
+    }
+
+    return list;
+  }, [
+    reviews,
+    restaurants,
+    feedbackRestaurantId,
+    feedbackType,
+    feedbackSearch,
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/60 to-stone-50">
@@ -310,34 +379,95 @@ export default function Dashboard() {
         </div>
 
         <section className="mt-12 rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
-          <h2 className="text-lg font-semibold text-stone-900">All feedback</h2>
+          <h2 className="text-lg font-semibold text-stone-900">Feedback</h2>
           <p className="mt-1 text-sm text-stone-600">
-            Low ratings stay private. High ratings are counted as guided Google moments.
+            Filter by venue and type — delete entries you don&apos;t need.
           </p>
+
+          {!loadingData && restaurants.length > 0 && reviews.length > 0 ? (
+            <div className="mt-5 rounded-2xl border border-stone-200/90 bg-stone-50/50 p-4 sm:p-5">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="block sm:col-span-2 lg:col-span-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    Restaurant
+                  </span>
+                  <select
+                    value={feedbackRestaurantId}
+                    onChange={(e) => setFeedbackRestaurantId(e.target.value)}
+                    className="mt-1.5 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                  >
+                    <option value="">All locations</option>
+                    {restaurants.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    Type
+                  </span>
+                  <select
+                    value={feedbackType}
+                    onChange={(e) => setFeedbackType(e.target.value)}
+                    className="mt-1.5 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                  >
+                    <option value="all">All</option>
+                    <option value="promoter">Google / high rating</option>
+                    <option value="private">Private (&lt;4★)</option>
+                  </select>
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    Search in text
+                  </span>
+                  <input
+                    type="search"
+                    value={feedbackSearch}
+                    onChange={(e) => setFeedbackSearch(e.target.value)}
+                    placeholder="Keyword in review or feedback…"
+                    className="mt-1.5 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 outline-none placeholder:text-stone-400 focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                  />
+                </label>
+              </div>
+              <p className="mt-3 text-xs text-stone-500">
+                Showing <strong className="text-stone-700">{filteredReviews.length}</strong> of{" "}
+                <strong className="text-stone-700">{reviews.length}</strong>{" "}
+                {reviews.length === 1 ? "entry" : "entries"}.
+              </p>
+            </div>
+          ) : null}
 
           {loadingData ? null : reviews.length === 0 ? (
             <p className="mt-6 text-sm text-stone-500">No entries yet.</p>
+          ) : filteredReviews.length === 0 ? (
+            <p className="mt-6 text-sm text-stone-500">
+              No feedback matches these filters — try another restaurant or clear search.
+            </p>
           ) : (
             <ul className="mt-6 space-y-3">
-              {reviews.map((rev) => (
+              {filteredReviews.map((rev) => (
                 <li
                   key={rev.id}
                   className="rounded-2xl border border-stone-200/80 bg-stone-50/40 px-4 py-4 transition hover:shadow-md"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium text-stone-900">
-                      {restaurantNameFromReview(rev)}
-                    </span>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        rev.stars >= 4
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-900"
-                      }`}
-                    >
-                      {reviewLabel(rev.stars)}
-                    </span>
-                  </div>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-stone-900">
+                          {restaurantNameFromReview(rev)}
+                        </span>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            rev.stars >= 4
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-900"
+                          }`}
+                        >
+                          {reviewLabel(rev.stars)}
+                        </span>
+                      </div>
                   <p className="mt-1 text-xs text-stone-500">
                     {new Date(rev.created_at).toLocaleString()} ·{" "}
                     {rev.food_stars != null &&
@@ -403,6 +533,18 @@ export default function Dashboard() {
                   ) : (
                     <p className="mt-2 text-sm italic text-stone-400">No text provided</p>
                   )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={deletingReviewId === rev.id}
+                      onClick={() =>
+                        handleDeleteReview(rev.id, restaurantNameFromReview(rev))
+                      }
+                      className="shrink-0 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deletingReviewId === rev.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
