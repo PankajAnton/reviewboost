@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { QRCodeCanvas } from "qrcode.react";
+import Logo from "../components/Logo.jsx";
 
 const ORANGE = "#f97316";
 
@@ -33,26 +34,27 @@ function A4Poster({ restaurantName, reviewUrl, siteUrl }) {
         style={{
           background: ORANGE,
           color: "#ffffff",
-          padding: "28px 32px",
+          padding: "32px 32px",
           textAlign: "center",
         }}
       >
         <div
           style={{
-            fontSize: "28px",
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            color: "#ffffff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "18px",
+            flexWrap: "wrap",
           }}
         >
-          ReviewBoost
+          <Logo variant="brand" inline pdfIconPx={80} size="nav" />
         </div>
         <div
           style={{
             fontSize: "13px",
             fontWeight: 500,
             opacity: 0.95,
-            marginTop: "8px",
+            marginTop: "10px",
             color: "#ffffff",
           }}
         >

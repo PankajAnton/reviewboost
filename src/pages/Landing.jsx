@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { LogoDark } from "../components/Logo.jsx";
 
 const features = [
   {
@@ -39,25 +40,27 @@ const tiers = [
 export default function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/80 via-stone-50 to-white">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
-        <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight text-stone-900">
-          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#f97316] text-sm font-bold text-white shadow-md">
-            RB
-          </span>
-          ReviewBoost
+      <header className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-6">
+        <Link
+          to="/"
+          aria-label="ReviewBoost home"
+          className="inline-flex shrink-0 items-center rounded-lg transition hover:opacity-90"
+        >
+          <LogoDark size="nav" />
         </Link>
-        <nav className="flex items-center gap-2 sm:gap-3">
+        <nav className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
           <Link
             to="/login"
-            className="min-h-12 rounded-2xl px-4 py-3 text-sm font-medium text-stone-700 transition hover:bg-white/80 hover:shadow-md"
+            className="inline-flex min-h-0 flex-1 items-center justify-center rounded-xl px-3 py-2.5 text-center text-sm font-medium leading-snug text-stone-700 transition hover:bg-white/80 hover:shadow-md sm:flex-none sm:px-4 sm:py-2.5"
           >
             Log in
           </Link>
           <Link
             to="/signup"
-            className="min-h-12 rounded-2xl bg-[#f97316] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#ea580c] hover:shadow-lg"
+            className="inline-flex min-h-0 flex-1 items-center justify-center rounded-xl bg-[#f97316] px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white shadow-sm transition hover:bg-[#ea580c] hover:shadow-md sm:flex-none sm:px-4 sm:py-2.5"
           >
-            Get Started Free
+            <span className="sm:hidden">Start free</span>
+            <span className="hidden sm:inline">Get Started Free</span>
           </Link>
         </nav>
       </header>
@@ -65,6 +68,9 @@ export default function Landing() {
       <main>
         <section className="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6 sm:pt-16">
           <div className="mx-auto max-w-3xl text-center">
+            <div className="mb-6 flex justify-center">
+              <LogoDark size="hero" className="justify-center" />
+            </div>
             <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-1.5 text-xs font-medium text-amber-800 shadow-md ring-1 ring-amber-100">
               Built for busy restaurant teams
             </p>
@@ -77,16 +83,16 @@ export default function Landing() {
             <p className="mx-auto mt-6 max-w-xl text-pretty text-lg leading-relaxed text-stone-600 sm:text-xl">
               Smart review filtering for restaurants. Good reviews go to Google. Bad ones stay with you.
             </p>
-            <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
               <Link
                 to="/signup"
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#f97316] px-8 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-[#ea580c] hover:shadow-lg"
+                className="inline-flex min-h-0 w-full max-w-sm items-center justify-center whitespace-nowrap rounded-xl bg-[#f97316] px-7 py-2.5 text-sm font-semibold leading-normal text-white shadow-sm transition hover:bg-[#ea580c] hover:shadow-md sm:w-auto sm:max-w-none sm:px-8 sm:text-base"
               >
                 Get Started Free
               </Link>
               <Link
                 to="/login"
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-white px-8 py-3.5 text-base font-semibold text-stone-800 shadow-md ring-1 ring-stone-200/80 transition hover:ring-[#f97316]/30"
+                className="inline-flex min-h-0 w-full max-w-sm items-center justify-center rounded-xl bg-white px-6 py-2.5 text-center text-xs font-semibold leading-snug text-stone-800 shadow-sm ring-1 ring-stone-200/80 transition hover:ring-[#f97316]/30 sm:px-8 sm:text-sm sm:leading-normal md:text-base"
               >
                 I already have an account
               </Link>
@@ -139,9 +145,9 @@ export default function Landing() {
                   <p className="mt-2 text-sm text-stone-600">{t.blurb}</p>
                   <Link
                     to="/signup"
-                    className={`mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                    className={`mt-6 inline-flex min-h-0 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold leading-snug transition ${
                       t.highlight
-                        ? "bg-[#f97316] text-white shadow-md hover:bg-[#ea580c]"
+                        ? "bg-[#f97316] text-white shadow-sm hover:bg-[#ea580c] hover:shadow-md"
                         : "bg-stone-100 text-stone-800 hover:bg-stone-200"
                     }`}
                   >

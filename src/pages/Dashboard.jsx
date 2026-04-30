@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabaseClient.js";
 import { getPublicAppBaseUrl, getReviewPageUrlForQr } from "../lib/appBaseUrl.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { LogoDark } from "../components/Logo.jsx";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -32,7 +33,7 @@ export default function Dashboard() {
       supabase
         .from("reviews")
         .select(
-          "id, stars, feedback, created_at, restaurant_id, restaurants ( name )"
+          "id, stars, feedback, created_at, restaurant_id, food_stars, service_stars, atmosphere_stars, overall_average, selected_template, feedback_food, feedback_service, feedback_atmosphere, restaurants ( name )"
         )
         .order("created_at", { ascending: false }),
     ]);
@@ -129,11 +130,12 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-b from-amber-50/60 to-stone-50">
       <header className="border-b border-stone-200/80 bg-white/90 shadow-sm backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 font-semibold text-stone-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#f97316] text-xs font-bold text-white shadow-md">
-              RB
-            </span>
-            ReviewBoost
+          <Link
+            to="/"
+            aria-label="ReviewBoost home"
+            className="flex shrink-0 items-center rounded-lg transition hover:opacity-90"
+          >
+            <LogoDark size="nav" />
           </Link>
           <button
             type="button"
@@ -337,9 +339,64 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-stone-500">
-                    {new Date(rev.created_at).toLocaleString()} · {rev.stars} stars
+                    {new Date(rev.created_at).toLocaleString()} ·{" "}
+                    {rev.food_stars != null &&
+                    rev.service_stars != null &&
+                    rev.atmosphere_stars != null ? (
+                      <>
+                        🍽️ {rev.food_stars} · 👨‍🍳 {rev.service_stars} · ✨{" "}
+                        {rev.atmosphere_stars}
+                        {rev.overall_average != null ? (
+                          <>
+                            {" "}
+                            · avg {Number(rev.overall_average).toFixed(1)}
+                          </>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>{rev.stars} stars overall</>
+                    )}
                   </p>
-                  {rev.feedback ? (
+                  {rev.food_stars != null ? (
+                    <>
+                      {rev.feedback_food ? (
+                        <p className="mt-1 text-sm text-stone-600">
+                          <span className="font-medium text-stone-700">Food:</span>{" "}
+                          {rev.feedback_food}
+                        </p>
+                      ) : null}
+                      {rev.feedback_service ? (
+                        <p className="mt-1 text-sm text-stone-600">
+                          <span className="font-medium text-stone-700">Service:</span>{" "}
+                          {rev.feedback_service}
+                        </p>
+                      ) : null}
+                      {rev.feedback_atmosphere ? (
+                        <p className="mt-1 text-sm text-stone-600">
+                          <span className="font-medium text-stone-700">Atmosphere:</span>{" "}
+                          {rev.feedback_atmosphere}
+                        </p>
+                      ) : null}
+                      {rev.selected_template ? (
+                        <p className="mt-2 text-sm leading-relaxed text-stone-700">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                            Google template
+                          </span>
+                          <br />
+                          {rev.selected_template}
+                        </p>
+                      ) : null}
+                      {!rev.selected_template &&
+                      rev.feedback &&
+                      !rev.feedback_food &&
+                      !rev.feedback_service &&
+                      !rev.feedback_atmosphere ? (
+                        <p className="mt-2 text-sm leading-relaxed text-stone-700">
+                          {rev.feedback}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : rev.feedback ? (
                     <p className="mt-2 text-sm leading-relaxed text-stone-700">
                       {rev.feedback}
                     </p>

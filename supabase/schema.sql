@@ -16,6 +16,14 @@ create table if not exists public.reviews (
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
   stars integer not null check (stars >= 1 and stars <= 5),
   feedback text not null default '',
+  food_stars integer check (food_stars is null or (food_stars >= 1 and food_stars <= 5)),
+  service_stars integer check (service_stars is null or (service_stars >= 1 and service_stars <= 5)),
+  atmosphere_stars integer check (atmosphere_stars is null or (atmosphere_stars >= 1 and atmosphere_stars <= 5)),
+  overall_average numeric(4,2),
+  selected_template text,
+  feedback_food text not null default '',
+  feedback_service text not null default '',
+  feedback_atmosphere text not null default '',
   created_at timestamptz not null default now()
 );
 

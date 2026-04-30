@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient.js";
 import PasswordField from "../components/PasswordField.jsx";
+import { LogoDark } from "../components/Logo.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -39,6 +40,9 @@ export default function Login() {
           ← Back home
         </Link>
         <div className="mt-8 rounded-2xl bg-white p-8 shadow-md ring-1 ring-stone-200/80">
+          <div className="mb-6 flex justify-center">
+            <LogoDark size="auth" />
+          </div>
           <h1 className="text-2xl font-bold tracking-tight text-stone-900">
             Welcome back
           </h1>
