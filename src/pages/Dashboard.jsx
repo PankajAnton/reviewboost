@@ -5,6 +5,47 @@ import { supabase } from "../lib/supabaseClient.js";
 import { getPublicAppBaseUrl, getReviewPageUrlForQr } from "../lib/appBaseUrl.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { LogoDark } from "../components/Logo.jsx";
+import {
+  filterReviewsForOwnerVenues,
+  splitByCalendarMonth,
+  countFeedbackBuckets,
+  monthOverMonthGrowth,
+} from "../lib/dashboardMetrics.js";
+
+function GrowthPill({ badge }) {
+  const cls =
+    badge.variant === "up"
+      ? "bg-emerald-100 text-emerald-800"
+      : badge.variant === "down"
+        ? "bg-red-50 text-red-700"
+        : "bg-stone-100 text-stone-600";
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${cls}`}
+    >
+      {badge.text}
+    </span>
+  );
+}
+
+function DashboardMetricCard({ iconBg, childrenIcon, label, value, badge }) {
+  return (
+    <div className="relative rounded-2xl border border-stone-200/90 bg-white p-5 shadow-sm ring-1 ring-stone-100/80">
+      <div className="flex items-start justify-between gap-3">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}
+        >
+          {childrenIcon}
+        </div>
+        <GrowthPill badge={badge} />
+      </div>
+      <p className="mt-4 text-sm font-medium text-stone-500">{label}</p>
+      <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-stone-900">
+        {typeof value === "number" ? value.toLocaleString("en-IN") : value}
+      </p>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -20,6 +61,8 @@ export default function Dashboard() {
   const [pdfBusyId, setPdfBusyId] = useState(null);
   /** "" = all locations */
   const [feedbackRestaurantId, setFeedbackRestaurantId] = useState("");
+  /** "" = monthly report for all venues combined; otherwise one restaurant */
+  const [reportVenueId, setReportVenueId] = useState("");
   const [feedbackType, setFeedbackType] = useState("all");
   const [feedbackSearch, setFeedbackSearch] = useState("");
   const [deletingReviewId, setDeletingReviewId] = useState(null);
@@ -69,6 +112,15 @@ export default function Dashboard() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (
+      reportVenueId &&
+      !restaurants.some((r) => r.id === reportVenueId)
+    ) {
+      setReportVenueId("");
+    }
+  }, [restaurants, reportVenueId]);
 
   async function handleLogout() {
     const ok = window.confirm(
@@ -262,6 +314,47 @@ export default function Dashboard() {
     feedbackSearch,
   ]);
 
+  const monthlySnapshot = useMemo(() => {
+    let ownerReviews = filterReviewsForOwnerVenues(reviews, restaurants);
+    if (reportVenueId) {
+      ownerReviews = ownerReviews.filter((r) => r.restaurant_id === reportVenueId);
+    }
+    const { thisMonth, lastMonth } = splitByCalendarMonth(ownerReviews);
+    const cur = countFeedbackBuckets(thisMonth);
+    const prev = countFeedbackBuckets(lastMonth);
+    const ref = new Date();
+    const curMonthTitle = ref.toLocaleString("en-IN", {
+      month: "long",
+      year: "numeric",
+    });
+    const prevAnchor = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
+    const prevMonthTitle = prevAnchor.toLocaleString("en-IN", {
+      month: "long",
+      year: "numeric",
+    });
+
+    const venueName = reportVenueId
+      ? restaurants.find((x) => x.id === reportVenueId)?.name ?? null
+      : null;
+
+    return {
+      cur,
+      prev,
+      badges: {
+        total: monthOverMonthGrowth(cur.total, prev.total),
+        google: monthOverMonthGrowth(cur.google, prev.google),
+        priv: monthOverMonthGrowth(cur.private, prev.private),
+        low: monthOverMonthGrowth(cur.low, prev.low),
+      },
+      curMonthTitle,
+      prevMonthTitle,
+      lastMonthCount: prev.total,
+      thisMonthCount: cur.total,
+      scopeLabel: venueName ? venueName : "All venues",
+      isAllVenues: !reportVenueId,
+    };
+  }, [reviews, restaurants, reportVenueId]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/60 to-stone-50">
       <header className="border-b border-stone-200/80 bg-white/90 shadow-sm backdrop-blur">
@@ -290,6 +383,163 @@ export default function Dashboard() {
         <p className="mt-1 text-stone-600">
           Add a venue, share the QR on tables, and watch feedback roll in.
         </p>
+
+        {!loadingData && !dataError ? (
+          <section
+            className="mt-8 rounded-3xl border border-stone-200/90 bg-white p-6 shadow-sm ring-1 ring-stone-100 sm:p-8"
+            style={{
+              backgroundImage: "radial-gradient(#e7e5e4 1px, transparent 1px)",
+              backgroundSize: "14px 14px",
+            }}
+          >
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-semibold text-stone-900">
+                  Monthly report
+                </h2>
+                <p className="mt-1 text-sm text-stone-600">
+                  <span className="font-semibold text-[#ea580c]">
+                    {monthlySnapshot.scopeLabel}
+                  </span>
+                  {monthlySnapshot.isAllVenues ? (
+                    <span className="text-stone-500"> · Combined</span>
+                  ) : null}
+                  {" · "}
+                  <span className="font-semibold text-stone-800">
+                    {monthlySnapshot.curMonthTitle}
+                  </span>{" "}
+                  vs{" "}
+                  <span className="text-stone-700">{monthlySnapshot.prevMonthTitle}</span>
+                  {" · "}
+                  Growth vs last month on each card.
+                </p>
+              </div>
+              <label className="block w-full shrink-0 lg:max-w-xs lg:pt-0.5">
+                <span className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  Report for
+                </span>
+                <select
+                  value={reportVenueId}
+                  onChange={(e) => setReportVenueId(e.target.value)}
+                  disabled={restaurants.length === 0}
+                  className="mt-1.5 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25 disabled:opacity-50"
+                >
+                  <option value="">All venues (combined)</option>
+                  {restaurants.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="mt-3 text-xs font-medium text-stone-500">
+              Pick one venue to see its own counts — or leave &quot;All venues&quot; for totals together.
+              {" "}
+              Low ratings = average ≤ 3★.
+            </p>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <DashboardMetricCard
+                iconBg="bg-orange-100 text-orange-600"
+                badge={monthlySnapshot.badges.total}
+                label="Total feedback"
+                value={monthlySnapshot.cur.total}
+                childrenIcon={
+                  <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                  </svg>
+                }
+              />
+              <DashboardMetricCard
+                iconBg="bg-sky-100 text-sky-600"
+                badge={monthlySnapshot.badges.google}
+                label="Google path (4–5★)"
+                value={monthlySnapshot.cur.google}
+                childrenIcon={
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                    />
+                  </svg>
+                }
+              />
+              <DashboardMetricCard
+                iconBg="bg-violet-100 text-violet-600"
+                badge={monthlySnapshot.badges.priv}
+                label="Private feedback (&lt;4★)"
+                value={monthlySnapshot.cur.private}
+                childrenIcon={
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                }
+              />
+              <DashboardMetricCard
+                iconBg="bg-amber-100 text-amber-700"
+                badge={monthlySnapshot.badges.low}
+                label="Low ratings (≤3★ avg)"
+                value={monthlySnapshot.cur.low}
+                childrenIcon={
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                }
+              />
+            </div>
+
+            <p className="mt-5 text-center text-xs text-stone-500 sm:text-left">
+              <span className="font-medium text-stone-600">
+                {monthlySnapshot.scopeLabel}
+              </span>
+              {": "}
+              last month{" "}
+              <strong className="text-stone-700">
+                {monthlySnapshot.prev.total.toLocaleString("en-IN")}
+              </strong>{" "}
+              entries · This month{" "}
+              <strong className="text-stone-700">
+                {monthlySnapshot.cur.total.toLocaleString("en-IN")}
+              </strong>
+            </p>
+          </section>
+        ) : null}
 
         <div className="mt-8 grid gap-8 lg:grid-cols-2">
           <section className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
