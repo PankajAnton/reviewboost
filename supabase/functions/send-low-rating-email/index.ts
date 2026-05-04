@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
   const { data: review, error: revErr } = await admin
     .from("reviews")
     .select(
-      "id, created_at, stars, overall_average, food_stars, service_stars, atmosphere_stars, feedback, feedback_food, feedback_service, feedback_atmosphere, restaurant_id, restaurants ( name, owner_id )",
+      "id, created_at, stars, overall_average, food_stars, service_stars, atmosphere_stars, feedback, feedback_food, feedback_service, feedback_atmosphere, restaurant_id",
     )
     .eq("id", reviewId)
     .maybeSingle();
@@ -266,32 +266,41 @@ Deno.serve(async (req) => {
     });
   }
 
-  const rest = review.restaurants as { name: string; owner_id: string } | null;
-  if (!rest?.owner_id) {
-    console.error("Restaurant join missing");
+  const { data: restaurantRow, error: restErr } = await admin
+    .from("restaurants")
+    .select("name, owner_id")
+    .eq("id", review.restaurant_id)
+    .maybeSingle();
+
+  if (restErr || !restaurantRow?.owner_id) {
+    console.error("Restaurant fetch failed", restErr);
     return new Response(JSON.stringify({ error: "Restaurant data missing" }), {
       status: 500,
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 
-  const { data: profile } = await admin
+  const { data: profile, error: profileErr } = await admin
     .from("profiles")
     .select("email")
-    .eq("id", rest.owner_id)
+    .eq("id", restaurantRow.owner_id)
     .maybeSingle();
+
+  if (profileErr) {
+    console.warn("profiles lookup (optional)", profileErr.message);
+  }
 
   let to = profile?.email?.trim() ?? "";
   if (!to) {
     const { data: authUser, error: authErr } = await admin.auth.admin.getUserById(
-      rest.owner_id,
+      restaurantRow.owner_id,
     );
     if (authErr) console.error("auth.admin.getUserById", authErr);
     to = authUser?.user?.email?.trim() ?? "";
   }
 
   if (!to) {
-    console.error("No owner email for", rest.owner_id);
+    console.error("No owner email for", restaurantRow.owner_id);
     return new Response(JSON.stringify({ error: "Owner email not found" }), {
       status: 422,
       headers: { ...cors, "Content-Type": "application/json" },
@@ -326,13 +335,13 @@ Deno.serve(async (req) => {
     timeStyle: "short",
   });
 
-  const subject = `⚠️ New Low Rating at ${rest.name}`;
+  const subject = `⚠️ New Low Rating at ${restaurantRow.name}`;
   const from =
     Deno.env.get("RESEND_FROM")?.trim() ??
     "ReviewBoost <onboarding@resend.dev>";
 
   const html = buildHtml({
-    restaurantName: rest.name,
+    restaurantName: restaurantRow.name,
     food,
     service,
     atmosphere,

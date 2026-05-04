@@ -15,13 +15,25 @@ async function notifyOwnerLowRatingSilently(supabase, reviewId) {
       getPublicAppBaseUrl() ||
       (typeof window !== "undefined" ? window.location.origin : "");
     const base = dashboardOrigin.trim().replace(/\/$/, "");
-    const { error } = await supabase.functions.invoke("send-low-rating-email", {
-      body: {
-        review_id: reviewId,
-        ...(base ? { dashboard_origin: base } : {}),
+    const { data, error } = await supabase.functions.invoke(
+      "send-low-rating-email",
+      {
+        body: {
+          review_id: reviewId,
+          ...(base ? { dashboard_origin: base } : {}),
+        },
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
-    if (error) console.error("Low rating email notify failed:", error);
+    );
+    if (import.meta.env.DEV) {
+      console.debug("[ReviewBoost] send-low-rating-email", { data, error });
+    }
+    if (error) {
+      console.error("Low rating email notify failed:", error.message ?? error);
+      if (error.context) console.error("Low rating email context:", error.context);
+    }
   } catch (e) {
     console.error("Low rating email notify failed:", e);
   }
