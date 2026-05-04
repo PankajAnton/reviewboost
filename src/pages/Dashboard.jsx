@@ -23,6 +23,13 @@ export default function Dashboard() {
   const [feedbackType, setFeedbackType] = useState("all");
   const [feedbackSearch, setFeedbackSearch] = useState("");
   const [deletingReviewId, setDeletingReviewId] = useState(null);
+  /** Venue being edited in “Your QR codes” — null when not editing */
+  const [editingRestaurantId, setEditingRestaurantId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editMapsLink, setEditMapsLink] = useState("");
+  const [editError, setEditError] = useState("");
+  const [savingEditId, setSavingEditId] = useState(null);
+  const [deletingRestaurantId, setDeletingRestaurantId] = useState(null);
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -97,6 +104,66 @@ export default function Dashboard() {
     setName("");
     setMapsLink("");
     setLastAddedId(data.id);
+    await loadAll();
+  }
+
+  function startEditRestaurant(r) {
+    setEditError("");
+    setEditingRestaurantId(r.id);
+    setEditName(r.name);
+    setEditMapsLink(r.google_maps_link);
+  }
+
+  function cancelEditRestaurant() {
+    setEditingRestaurantId(null);
+    setEditName("");
+    setEditMapsLink("");
+    setEditError("");
+  }
+
+  async function handleSaveRestaurantEdit(e, restaurantId) {
+    e.preventDefault();
+    setEditError("");
+    if (!editName.trim() || !editMapsLink.trim()) {
+      setEditError("Please enter restaurant name and Google Maps review link.");
+      return;
+    }
+    setSavingEditId(restaurantId);
+    const { error } = await supabase
+      .from("restaurants")
+      .update({
+        name: editName.trim(),
+        google_maps_link: editMapsLink.trim(),
+      })
+      .eq("id", restaurantId)
+      .eq("owner_id", user.id);
+
+    setSavingEditId(null);
+    if (error) {
+      setEditError(error.message);
+      return;
+    }
+    cancelEditRestaurant();
+    await loadAll();
+  }
+
+  async function handleDeleteRestaurant(r) {
+    const ok = window.confirm(
+      `Delete "${r.name}" and all feedback collected for this venue? This cannot be undone.`
+    );
+    if (!ok) return;
+    if (editingRestaurantId === r.id) cancelEditRestaurant();
+    setDeletingRestaurantId(r.id);
+    setDataError("");
+    const { error } = await supabase.from("restaurants").delete().eq("id", r.id);
+    setDeletingRestaurantId(null);
+    if (error) {
+      setDataError(error.message);
+      alert(error.message || "Could not delete this venue.");
+      return;
+    }
+    if (feedbackRestaurantId === r.id) setFeedbackRestaurantId("");
+    if (lastAddedId === r.id) setLastAddedId(null);
     await loadAll();
   }
 
@@ -331,9 +398,59 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-4 sm:items-stretch">
-                          <p className="text-center text-lg font-bold tracking-tight text-stone-900 sm:text-left">
-                            {r.name}
-                          </p>
+                          {editingRestaurantId === r.id ? (
+                            <form
+                              onSubmit={(e) => handleSaveRestaurantEdit(e, r.id)}
+                              className="w-full space-y-3"
+                            >
+                              {editError ? (
+                                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
+                                  {editError}
+                                </div>
+                              ) : null}
+                              <div>
+                                <label className="block text-xs font-medium text-stone-600">
+                                  Restaurant name
+                                </label>
+                                <input
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  className="mt-1 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-stone-600">
+                                  Google Maps review link
+                                </label>
+                                <input
+                                  value={editMapsLink}
+                                  onChange={(e) => setEditMapsLink(e.target.value)}
+                                  className="mt-1 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                                />
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="submit"
+                                  disabled={savingEditId === r.id}
+                                  className="min-h-11 rounded-xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c] disabled:opacity-60"
+                                >
+                                  {savingEditId === r.id ? "Saving…" : "Save changes"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={savingEditId === r.id}
+                                  onClick={cancelEditRestaurant}
+                                  className="min-h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-60"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          ) : (
+                            <p className="text-center text-lg font-bold tracking-tight text-stone-900 sm:text-left">
+                              {r.name}
+                            </p>
+                          )}
                           <div className="flex w-full max-w-md flex-col gap-2 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
                             <button
                               type="button"
@@ -367,6 +484,30 @@ export default function Dashboard() {
                             >
                               {scanUrl ? "Test review page" : "Open on this PC"}
                             </a>
+                            {editingRestaurantId !== r.id ? (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={Boolean(deletingRestaurantId) || Boolean(pdfBusyId)}
+                                  onClick={() => startEditRestaurant(r)}
+                                  className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[10rem]"
+                                >
+                                  Edit venue
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={
+                                    deletingRestaurantId === r.id ||
+                                    Boolean(pdfBusyId) ||
+                                    savingEditId === r.id
+                                  }
+                                  onClick={() => handleDeleteRestaurant(r)}
+                                  className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[10rem]"
+                                >
+                                  {deletingRestaurantId === r.id ? "Deleting…" : "Delete venue"}
+                                </button>
+                              </>
+                            ) : null}
                           </div>
                         </div>
                       </div>
