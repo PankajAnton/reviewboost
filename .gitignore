@@ -1,5 +1,11 @@
 node_modules
 dist
-.env
 .DS_Store
 *.log
+
+# Secrets — never commit (API keys, Supabase service role, Resend, etc.)
+.env
+.env.*
+!.env.example
+*.pem
+.vercel

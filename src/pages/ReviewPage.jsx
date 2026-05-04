@@ -7,6 +7,25 @@ import {
   resolvePromoterTemplates,
   roundOverallForLegacyStars,
 } from "../lib/reviewTemplates.js";
+import { getPublicAppBaseUrl } from "../lib/appBaseUrl.js";
+
+async function notifyOwnerLowRatingSilently(supabase, reviewId) {
+  try {
+    const dashboardOrigin =
+      getPublicAppBaseUrl() ||
+      (typeof window !== "undefined" ? window.location.origin : "");
+    const base = dashboardOrigin.trim().replace(/\/$/, "");
+    const { error } = await supabase.functions.invoke("send-low-rating-email", {
+      body: {
+        review_id: reviewId,
+        ...(base ? { dashboard_origin: base } : {}),
+      },
+    });
+    if (error) console.error("Low rating email notify failed:", error);
+  } catch (e) {
+    console.error("Low rating email notify failed:", e);
+  }
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -179,7 +198,12 @@ export default function ReviewPage() {
     setActionError("");
     setSubmitting(true);
     const avg = (food + service + atmosphere) / 3;
+    const reviewId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : undefined;
     const row = {
+      ...(reviewId ? { id: reviewId } : {}),
       restaurant_id: restaurant.id,
       stars: roundOverallForLegacyStars(avg),
       food_stars: food,
@@ -207,6 +231,9 @@ export default function ReviewPage() {
       return;
     }
     setPhase("doneLow");
+    if (reviewId && avg <= 3) {
+      void notifyOwnerLowRatingSilently(supabase, reviewId);
+    }
   }
 
   async function copyAndOpenMaps() {
