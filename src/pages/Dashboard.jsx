@@ -626,139 +626,138 @@ export default function Dashboard() {
                           : "bg-stone-50/50 ring-stone-200/80"
                       }`}
                     >
-                      <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-8">
-                        <div className="flex w-full shrink-0 justify-center sm:w-auto sm:justify-start">
-                          <div className="rounded-2xl bg-white p-3 shadow-md ring-1 ring-stone-100">
-                          {scanUrl ? (
-                            <QRCodeSVG
-                              value={scanUrl}
-                              size={140}
-                              level="M"
-                              includeMargin
-                              bgColor="#ffffff"
-                              fgColor="#1c1917"
-                            />
-                          ) : (
-                            <div className="flex size-[140px] flex-col items-center justify-center gap-2 rounded-xl bg-stone-100 p-3 text-center text-xs font-medium text-stone-600">
-                              QR tab banega jab public URL set ho (
-                              <code className="rounded bg-white px-0.5">VITE_PUBLIC_APP_URL</code> build ke waqt).
+                      <div className="flex w-full flex-col items-center gap-5">
+                        {editingRestaurantId === r.id ? (
+                          <form
+                            onSubmit={(e) => handleSaveRestaurantEdit(e, r.id)}
+                            className="w-full max-w-md space-y-3"
+                          >
+                            {editError ? (
+                              <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
+                                {editError}
+                              </div>
+                            ) : null}
+                            <div>
+                              <label className="block text-xs font-medium text-stone-600">
+                                Restaurant name
+                              </label>
+                              <input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="mt-1 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                              />
                             </div>
-                          )}
+                            <div>
+                              <label className="block text-xs font-medium text-stone-600">
+                                Google Maps review link
+                              </label>
+                              <input
+                                value={editMapsLink}
+                                onChange={(e) => setEditMapsLink(e.target.value)}
+                                className="mt-1 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="submit"
+                                disabled={savingEditId === r.id}
+                                className="min-h-11 flex-1 rounded-xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c] disabled:opacity-60"
+                              >
+                                {savingEditId === r.id ? "Saving…" : "Save changes"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={savingEditId === r.id}
+                                onClick={cancelEditRestaurant}
+                                className="min-h-11 flex-1 rounded-xl border-2 border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-60"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <h3 className="w-full max-w-md px-2 text-center text-xl font-bold leading-snug tracking-tight text-stone-900 sm:text-2xl">
+                            {r.name}
+                          </h3>
+                        )}
+
+                        <div className="flex justify-center">
+                          <div className="rounded-2xl bg-white p-3 shadow-md ring-1 ring-stone-100">
+                            {scanUrl ? (
+                              <QRCodeSVG
+                                value={scanUrl}
+                                size={140}
+                                level="M"
+                                includeMargin
+                                bgColor="#ffffff"
+                                fgColor="#1c1917"
+                              />
+                            ) : (
+                              <div className="flex size-[140px] flex-col items-center justify-center gap-2 rounded-xl bg-stone-100 p-3 text-center text-xs font-medium text-stone-600">
+                                QR tab banega jab public URL set ho (
+                                <code className="rounded bg-white px-0.5">VITE_PUBLIC_APP_URL</code> build ke waqt).
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-4 sm:items-stretch">
-                          {editingRestaurantId === r.id ? (
-                            <form
-                              onSubmit={(e) => handleSaveRestaurantEdit(e, r.id)}
-                              className="w-full space-y-3"
+                        <div className="flex w-full max-w-md flex-col gap-3">
+                          <button
+                            type="button"
+                            disabled={Boolean(pdfBusyId) || !(scanUrl || laptopTestUrl)}
+                            onClick={() =>
+                              handleDownloadPdf(r, scanUrl || laptopTestUrl)
+                            }
+                            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-md transition hover:bg-[#ea580c] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <svg
+                              className="h-4 w-4 shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              aria-hidden
                             >
-                              {editError ? (
-                                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
-                                  {editError}
-                                </div>
-                              ) : null}
-                              <div>
-                                <label className="block text-xs font-medium text-stone-600">
-                                  Restaurant name
-                                </label>
-                                <input
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  className="mt-1 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-stone-600">
-                                  Google Maps review link
-                                </label>
-                                <input
-                                  value={editMapsLink}
-                                  onChange={(e) => setEditMapsLink(e.target.value)}
-                                  className="mt-1 w-full min-h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
-                                />
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  type="submit"
-                                  disabled={savingEditId === r.id}
-                                  className="min-h-11 rounded-xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c] disabled:opacity-60"
-                                >
-                                  {savingEditId === r.id ? "Saving…" : "Save changes"}
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={savingEditId === r.id}
-                                  onClick={cancelEditRestaurant}
-                                  className="min-h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-60"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </form>
-                          ) : (
-                            <p className="text-center text-lg font-bold tracking-tight text-stone-900 sm:text-left">
-                              {r.name}
-                            </p>
-                          )}
-                          <div className="flex w-full max-w-md flex-col gap-2 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center">
-                            <button
-                              type="button"
-                              disabled={Boolean(pdfBusyId) || !(scanUrl || laptopTestUrl)}
-                              onClick={() =>
-                                handleDownloadPdf(r, scanUrl || laptopTestUrl)
-                              }
-                              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[10rem]"
-                            >
-                              <svg
-                                className="h-4 w-4 shrink-0"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                                aria-hidden
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                              />
+                            </svg>
+                            {pdfBusyId === r.id ? "Generating…" : "Download PDF"}
+                          </button>
+                          <a
+                            href={scanUrl || laptopTestUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-50"
+                          >
+                            {scanUrl ? "Test review page" : "Open on this PC"}
+                          </a>
+                          {editingRestaurantId !== r.id ? (
+                            <div className="grid w-full grid-cols-2 gap-3">
+                              <button
+                                type="button"
+                                disabled={Boolean(deletingRestaurantId) || Boolean(pdfBusyId)}
+                                onClick={() => startEditRestaurant(r)}
+                                className="inline-flex min-h-12 w-full min-w-0 items-center justify-center rounded-2xl border-2 border-stone-300 bg-white px-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                                />
-                              </svg>
-                              {pdfBusyId === r.id ? "Generating…" : "Download PDF"}
-                            </button>
-                            <a
-                              href={scanUrl || laptopTestUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-white px-4 text-sm font-semibold text-[#f97316] shadow-sm ring-1 ring-[#f97316]/35 transition hover:bg-amber-50 sm:w-auto sm:min-w-[10rem]"
-                            >
-                              {scanUrl ? "Test review page" : "Open on this PC"}
-                            </a>
-                            {editingRestaurantId !== r.id ? (
-                              <>
-                                <button
-                                  type="button"
-                                  disabled={Boolean(deletingRestaurantId) || Boolean(pdfBusyId)}
-                                  onClick={() => startEditRestaurant(r)}
-                                  className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[10rem]"
-                                >
-                                  Edit venue
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={
-                                    deletingRestaurantId === r.id ||
-                                    Boolean(pdfBusyId) ||
-                                    savingEditId === r.id
-                                  }
-                                  onClick={() => handleDeleteRestaurant(r)}
-                                  className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[10rem]"
-                                >
-                                  {deletingRestaurantId === r.id ? "Deleting…" : "Delete venue"}
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
+                                Edit venue
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  deletingRestaurantId === r.id ||
+                                  Boolean(pdfBusyId) ||
+                                  savingEditId === r.id
+                                }
+                                onClick={() => handleDeleteRestaurant(r)}
+                                className="inline-flex min-h-12 w-full min-w-0 items-center justify-center rounded-2xl border-2 border-red-200 bg-white px-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {deletingRestaurantId === r.id ? "Deleting…" : "Delete venue"}
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </li>
