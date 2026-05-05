@@ -8,6 +8,10 @@ import {
   roundOverallForLegacyStars,
 } from "../lib/reviewTemplates.js";
 import { getPublicAppBaseUrl } from "../lib/appBaseUrl.js";
+import {
+  hasSubmittedReviewOnDevice,
+  markRestaurantReviewSubmitted,
+} from "../lib/reviewDeviceLock.js";
 
 async function notifyOwnerLowRatingSilently(supabase, reviewId) {
   try {
@@ -104,6 +108,31 @@ function buildDetractorSummary(food, service, atmosphere, fbF, fbS, fbA) {
   if (atmosphere < 4 && fbA.trim())
     lines.push(`Atmosphere: ${fbA.trim()}`);
   return lines.join("\n\n") || "(No written feedback)";
+}
+
+function AlreadyReviewedScreen({ restaurantName }) {
+  return (
+    <div className="flex min-h-[calc(100vh-10rem)] flex-col items-center justify-center px-2 py-10 text-center sm:min-h-[calc(100vh-8rem)]">
+      <div
+        className="select-none text-[4.5rem] leading-none drop-shadow-sm sm:text-8xl"
+        aria-hidden
+      >
+        ✅
+      </div>
+      <h1 className="mt-8 max-w-md text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">
+        You&apos;ve already shared your feedback!
+      </h1>
+      <p className="mt-5 max-w-md text-base leading-relaxed text-stone-600 sm:text-lg">
+        Thank you for taking the time. Your response has been recorded. 🙏
+      </p>
+      <p className="mt-8 rounded-2xl bg-orange-50 px-6 py-3 text-lg font-semibold text-[#c2410c] ring-1 ring-orange-100">
+        {restaurantName}
+      </p>
+      <p className="mt-auto max-w-xs pt-14 text-[13px] leading-snug text-stone-500">
+        Each device can submit one review per restaurant.
+      </p>
+    </div>
+  );
 }
 
 export default function ReviewPage() {
@@ -242,6 +271,7 @@ export default function ReviewPage() {
       setActionError(error.message);
       return;
     }
+    markRestaurantReviewSubmitted(restaurant.id);
     setPhase("doneLow");
     if (reviewId && avg <= 3) {
       void notifyOwnerLowRatingSilently(supabase, reviewId);
@@ -284,6 +314,7 @@ export default function ReviewPage() {
       setActionError(error.message);
       return;
     }
+    markRestaurantReviewSubmitted(restaurant.id);
     setPhase("doneHigh");
     window.open(restaurant.google_maps_link, "_blank", "noopener,noreferrer");
   }
@@ -292,8 +323,20 @@ export default function ReviewPage() {
   const showLowService = phase === "detractor" && service < 4;
   const showLowAtmosphere = phase === "detractor" && atmosphere < 4;
 
+  const completedThankYouPhase = phase === "doneLow" || phase === "doneHigh";
+  const blockedByPriorReview =
+    Boolean(restaurant) &&
+    hasSubmittedReviewOnDevice(restaurant.id) &&
+    !completedThankYouPhase;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/90 via-stone-50 to-white px-4 py-8 sm:py-12">
+    <div
+      className={`min-h-screen px-4 py-8 sm:py-12 ${
+        blockedByPriorReview
+          ? "bg-gradient-to-b from-[#fffbf7] via-[#fff8f0] to-orange-50/50"
+          : "bg-gradient-to-b from-amber-50/90 via-stone-50 to-white"
+      }`}
+    >
       <div className="mx-auto max-w-lg">
         <Link
           to="/"
@@ -314,6 +357,8 @@ export default function ReviewPage() {
           <div className="mt-10 rounded-2xl bg-white p-8 shadow-lg ring-1 ring-red-100">
             <p className="text-red-700">{loadError || "Something went wrong."}</p>
           </div>
+        ) : blockedByPriorReview ? (
+          <AlreadyReviewedScreen restaurantName={restaurant.name} />
         ) : (
           <>
             {(phase === "rate" ||
