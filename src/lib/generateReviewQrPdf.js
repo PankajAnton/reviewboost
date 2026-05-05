@@ -10,15 +10,67 @@ function a4PortraitPt() {
   return [595, 842];
 }
 
-/** Five filled orange squares as star placeholders (jsPDF standard fonts mangle Unicode stars). */
-function drawOrangeRatingMarkers(doc, centerX, topY) {
-  const sq = 8;
-  const gap = 12;
-  const rowW = 5 * sq + 4 * gap;
-  const leftX = centerX - rowW / 2;
+/** Five-point star path on canvas (filled separately). */
+function canvasStarPath(ctx, cx, cy, outerR, innerR) {
+  ctx.beginPath();
+  for (let k = 0; k < 5; k++) {
+    const aOut = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+    const aIn = aOut + Math.PI / 5;
+    const ox = cx + outerR * Math.cos(aOut);
+    const oy = cy + outerR * Math.sin(aOut);
+    const ix = cx + innerR * Math.cos(aIn);
+    const iy = cy + innerR * Math.sin(aIn);
+    if (k === 0) ctx.moveTo(ox, oy);
+    else ctx.lineTo(ox, oy);
+    ctx.lineTo(ix, iy);
+  }
+  ctx.closePath();
+}
+
+/**
+ * Five orange stars as one raster strip (jsPDF fonts cannot draw Unicode stars reliably).
+ * @returns {{ dataUrl: string, aspect: number } | null}
+ */
+function createOrangeStarStripImage() {
+  if (typeof document === "undefined") return null;
+  const dpr = Math.min(3, (typeof window !== "undefined" && window.devicePixelRatio) || 2);
+  const outerR = 11;
+  const innerR = outerR * 0.42;
+  const gap = 13;
+  const n = 5;
+  const pad = 6;
+  const rowW = pad * 2 + n * (2 * outerR) + (n - 1) * gap;
+  const rowH = pad * 2 + 2 * outerR;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(rowW * dpr);
+  canvas.height = Math.ceil(rowH * dpr);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = "#f97316";
+
+  for (let i = 0; i < n; i++) {
+    const cx = pad + outerR + i * (2 * outerR + gap);
+    const cy = rowH / 2;
+    canvasStarPath(ctx, cx, cy, outerR, innerR);
+    ctx.fill();
+  }
+
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    aspect: rowW / rowH,
+  };
+}
+
+/** Fallback if canvas unavailable: tiny orange dots */
+function drawOrangeStarFallbackDots(doc, centerX, centerY) {
+  const r = 3.5;
+  const step = 14;
   doc.setFillColor(...ORANGE);
-  for (let i = 0; i < 5; i++) {
-    doc.rect(leftX + i * (sq + gap), topY, sq, sq, "F");
+  for (let i = -2; i <= 2; i++) {
+    doc.circle(centerX + i * step, centerY, r, "F");
   }
 }
 
@@ -211,8 +263,16 @@ export async function downloadReviewBoostRestaurantPdf({
   });
   fy += 28;
 
-  drawOrangeRatingMarkers(doc, cx, fy);
-  fy += 8 + 30;
+  const starStrip = createOrangeStarStripImage();
+  const stripWpt = 92;
+  if (starStrip?.dataUrl) {
+    const stripHpt = stripWpt / starStrip.aspect;
+    doc.addImage(starStrip.dataUrl, "PNG", cx - stripWpt / 2, fy, stripWpt, stripHpt);
+    fy += stripHpt + 24;
+  } else {
+    drawOrangeStarFallbackDots(doc, cx, fy + 5);
+    fy += 28;
+  }
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
