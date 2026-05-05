@@ -236,7 +236,7 @@ export default function Dashboard() {
     setPdfBusyId(r.id);
     try {
       const { downloadReviewBoostRestaurantPdf } = await import(
-        "../lib/generateReviewQrPdf.jsx"
+        "../lib/generateReviewQrPdf.js"
       );
       await downloadReviewBoostRestaurantPdf({
         restaurantName: r.name,
