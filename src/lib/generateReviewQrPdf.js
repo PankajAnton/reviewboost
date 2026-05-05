@@ -5,9 +5,21 @@ const ORANGE = [249, 115, 22]; // #f97316
 const ORANGE_STRIPE = [234, 88, 12]; // #ea580c
 const FOOTER_BLACK = [15, 15, 15]; // #0f0f0f
 
-/** @returns {[number, number]} width × height in pt */
+/** @returns {[number, number]} width x height in pt (A4 portrait) */
 function a4PortraitPt() {
   return [595, 842];
+}
+
+/** Five filled orange squares as star placeholders (jsPDF standard fonts mangle Unicode stars). */
+function drawOrangeRatingMarkers(doc, centerX, topY) {
+  const sq = 8;
+  const gap = 12;
+  const rowW = 5 * sq + 4 * gap;
+  const leftX = centerX - rowW / 2;
+  doc.setFillColor(...ORANGE);
+  for (let i = 0; i < 5; i++) {
+    doc.rect(leftX + i * (sq + gap), topY, sq, sq, "F");
+  }
 }
 
 function sanitizeFilename(name) {
@@ -19,7 +31,7 @@ function sanitizeFilename(name) {
   return s || "Restaurant";
 }
 
-/** Display hostname for footer under QR (no scheme). */
+/** Display hostname for under QR (no scheme). ASCII hostname expected. */
 function displayHost(siteUrl, fallbackOrigin) {
   const raw = (siteUrl || fallbackOrigin || "").trim();
   if (!raw) return "your-site.app";
@@ -32,7 +44,8 @@ function displayHost(siteUrl, fallbackOrigin) {
 }
 
 /**
- * Premium table-tent style QR flyer — exact A4 portrait (595 × 842 pt), vector layout + crisp QR.
+ * Table-tent QR flyer - A4 portrait 595 x 842 pt.
+ * PDF strings use basic ASCII only (no Unicode stars, bullets, or emoji).
  */
 export async function downloadReviewBoostRestaurantPdf({
   restaurantName,
@@ -40,14 +53,13 @@ export async function downloadReviewBoostRestaurantPdf({
   siteUrl,
 }) {
   if (!reviewUrl?.trim()) {
-    throw new Error("Review link missing — set VITE_PUBLIC_APP_URL and redeploy.");
+    throw new Error("Review link missing - set VITE_PUBLIC_APP_URL and redeploy.");
   }
 
   const [pageW, pageH] = a4PortraitPt();
-  /** Narrow brand strip — more room for venue name + QR in the middle. */
   const topH = Math.round((pageH * 15) / 100);
-  const botH = Math.round(pageH / 4);
-  const midH = pageH - topH - botH;
+  const botReserve = Math.round(pageH / 4);
+  const midH = pageH - topH - botReserve;
 
   const qrPx = 800;
   const qrDataUrl = await QRCode.toDataURL(reviewUrl.trim(), {
@@ -70,14 +82,12 @@ export async function downloadReviewBoostRestaurantPdf({
   const hostLabel = displayHost(siteUrl, fallbackOrigin);
   const venue = (restaurantName || "Restaurant").trim() || "Restaurant";
 
-  /** Horizontal center of page — use with `{ align: "center" }` on every text line */
   const cx = pageW / 2;
 
-  // ——— SECTION 1: TOP ORANGE (~15%) ———
+  // --- SECTION 1: TOP ORANGE ---
   doc.setFillColor(...ORANGE);
   doc.rect(0, 0, pageW, topH, "F");
 
-  // Subtle diagonal texture (clipped to band)
   const stripeDiagClip = () => {
     try {
       doc.saveGraphicsState();
@@ -101,7 +111,6 @@ export async function downloadReviewBoostRestaurantPdf({
   };
   stripeDiagClip();
 
-  // Wordmark: horizontally centered block (Review + Boost)
   doc.setFont("helvetica", "bold");
   const logoReview = "Review";
   const logoBoost = "Boost";
@@ -118,7 +127,7 @@ export async function downloadReviewBoostRestaurantPdf({
 
   doc.setTextColor(255, 255, 255);
   doc.text(logoReview, logoLeft, logoY);
-  doc.setTextColor(255, 237, 213); // warm tint on Boost (readable on orange)
+  doc.setTextColor(255, 237, 213);
   doc.text(logoBoost, logoLeft + wRev + gapPx, logoY);
 
   doc.setFont("helvetica", "normal");
@@ -133,7 +142,7 @@ export async function downloadReviewBoostRestaurantPdf({
     tagLineY += 11;
   });
 
-  // ——— SECTION 2: WHITE MID (remaining ~60%) ———
+  // --- SECTION 2: WHITE MID (ends exactly where footer starts) ---
   doc.setFillColor(255, 255, 255);
   doc.rect(0, topH, pageW, midH, "F");
 
@@ -153,7 +162,7 @@ export async function downloadReviewBoostRestaurantPdf({
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
-  doc.setTextColor(113, 108, 100); // gray
+  doc.setTextColor(113, 108, 100);
   doc.text("We value your feedback", cx, cy + 6, { align: "center" });
 
   const afterSubtitle = cy + 6 + 14;
@@ -179,32 +188,31 @@ export async function downloadReviewBoostRestaurantPdf({
     hy += 11;
   });
 
-  // ——— SECTION 3: DARK BOTTOM (25%) ———
+  // --- SECTION 3: DARK BOTTOM - flush to y = pageH (no white strip) ---
   const botTop = topH + midH;
-  doc.setFillColor(...FOOTER_BLACK);
-  doc.rect(0, botTop, pageW, botH, "F");
+  const botFillH = pageH - botTop;
 
-  // Footer stack — fixed spacing, all horizontally centered on cx
-  let fy = botTop + botH * 0.2;
+  doc.setFillColor(...FOOTER_BLACK);
+  doc.rect(0, botTop, pageW, botFillH, "F");
+
+  let fy = botTop + 32;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(26);
   doc.setTextColor(255, 255, 255);
-  doc.text("Scan ★★★ Rate Us", cx, fy, { align: "center" });
-  fy += 30;
+  doc.text("Scan and Rate Us", cx, fy, { align: "center" });
+  fy += 36;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(161, 161, 161);
-  doc.text("Takes 30 seconds • Helps us serve you better", cx, fy, {
+  doc.text("Takes 30 seconds - Helps us serve you better", cx, fy, {
     align: "center",
   });
-  fy += 24;
+  fy += 28;
 
-  doc.setFontSize(20);
-  doc.setTextColor(...ORANGE);
-  doc.text("★★★★★", cx, fy, { align: "center" });
-  fy += 30;
+  drawOrangeRatingMarkers(doc, cx, fy);
+  fy += 8 + 30;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
