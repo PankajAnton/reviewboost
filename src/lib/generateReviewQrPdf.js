@@ -44,9 +44,10 @@ export async function downloadReviewBoostRestaurantPdf({
   }
 
   const [pageW, pageH] = a4PortraitPt();
-  const topH = pageH / 4;
-  const midH = pageH / 2;
-  const botH = pageH - topH - midH;
+  /** Narrow brand strip — more room for venue name + QR in the middle. */
+  const topH = Math.round((pageH * 15) / 100);
+  const botH = Math.round(pageH / 4);
+  const midH = pageH - topH - botH;
 
   const qrPx = 800;
   const qrDataUrl = await QRCode.toDataURL(reviewUrl.trim(), {
@@ -69,7 +70,10 @@ export async function downloadReviewBoostRestaurantPdf({
   const hostLabel = displayHost(siteUrl, fallbackOrigin);
   const venue = (restaurantName || "Restaurant").trim() || "Restaurant";
 
-  // ——— SECTION 1: TOP ORANGE (25%) ———
+  /** Horizontal center of page — use with `{ align: "center" }` on every text line */
+  const cx = pageW / 2;
+
+  // ——— SECTION 1: TOP ORANGE (~15%) ———
   doc.setFillColor(...ORANGE);
   doc.rect(0, 0, pageW, topH, "F");
 
@@ -97,18 +101,20 @@ export async function downloadReviewBoostRestaurantPdf({
   };
   stripeDiagClip();
 
-  // Wordmark (vector — crisp print): Review · Boost on orange
+  // Wordmark: horizontally centered block (Review + Boost)
   doc.setFont("helvetica", "bold");
   const logoReview = "Review";
   const logoBoost = "Boost";
-  doc.setFontSize(30);
+  doc.setFontSize(24);
   const wRev = doc.getTextWidth(logoReview);
   const gapPx = 3;
-  doc.setFontSize(30);
+  doc.setFontSize(24);
   const wBoost = doc.getTextWidth(logoBoost);
   const logoTotal = wRev + gapPx + wBoost;
-  const logoLeft = pageW / 2 - logoTotal / 2;
-  const logoY = topH * 0.42;
+  const logoLeft = cx - logoTotal / 2;
+  const midOrange = topH / 2;
+  const logoY = midOrange + 2;
+  let tagLineY = logoY + 22;
 
   doc.setTextColor(255, 255, 255);
   doc.text(logoReview, logoLeft, logoY);
@@ -116,37 +122,39 @@ export async function downloadReviewBoostRestaurantPdf({
   doc.text(logoBoost, logoLeft + wRev + gapPx, logoY);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.setTextColor(255, 252, 248);
-  doc.text(
+  const tagLines = doc.splitTextToSize(
     "Smart Reviews for Smart Restaurants",
-    pageW / 2,
-    topH * 0.72,
-    { align: "center" },
+    pageW - 48,
   );
+  tagLines.forEach((line) => {
+    doc.text(line, cx, tagLineY, { align: "center" });
+    tagLineY += 11;
+  });
 
-  // ——— SECTION 2: WHITE MID (50%) ———
+  // ——— SECTION 2: WHITE MID (remaining ~60%) ———
   doc.setFillColor(255, 255, 255);
   doc.rect(0, topH, pageW, midH, "F");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(28);
+  doc.setFontSize(30);
   doc.setTextColor(28, 25, 23);
 
   const nameMaxW = pageW - 72;
   const nameLines = doc.splitTextToSize(venue, nameMaxW);
   const lineStep = nameLines.length > 2 ? 30 : 34;
-  let cy = topH + (nameLines.length >= 3 ? 40 : 52);
+  let cy = topH + (nameLines.length >= 3 ? 52 : 64);
 
   nameLines.slice(0, 5).forEach((line) => {
-    doc.text(line, pageW / 2, cy, { align: "center" });
+    doc.text(line, cx, cy, { align: "center" });
     cy += lineStep;
   });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
   doc.setTextColor(113, 108, 100); // gray
-  doc.text("We value your feedback", pageW / 2, cy + 6, { align: "center" });
+  doc.text("We value your feedback", cx, cy + 6, { align: "center" });
 
   const afterSubtitle = cy + 6 + 14;
   const qrSize = 200;
@@ -155,56 +163,59 @@ export async function downloadReviewBoostRestaurantPdf({
   const qrFloorSpace = 38;
   const qrMinY = afterSubtitle + qrPadTop;
   const qrMaxY = midBandBot - qrSize - qrFloorSpace;
-  let qrY = topH + midH * 0.52 - qrSize / 2;
+  let qrY = topH + midH * 0.48 - qrSize / 2;
   qrY = Math.min(Math.max(qrMinY, qrY), qrMaxY);
 
-  doc.addImage(qrDataUrl, "PNG", (pageW - qrSize) / 2, qrY, qrSize, qrSize);
+  const qrX = (pageW - qrSize) / 2;
+  doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(168, 162, 158);
-  doc.text(hostLabel, pageW / 2, qrY + qrSize + 22, { align: "center" });
+  const hostLines = doc.splitTextToSize(hostLabel, pageW - 96);
+  let hy = qrY + qrSize + 16;
+  hostLines.forEach((line) => {
+    doc.text(line, cx, hy, { align: "center" });
+    hy += 11;
+  });
 
   // ——— SECTION 3: DARK BOTTOM (25%) ———
   const botTop = topH + midH;
   doc.setFillColor(...FOOTER_BLACK);
   doc.rect(0, botTop, pageW, botH, "F");
 
+  // Footer stack — fixed spacing, all horizontally centered on cx
+  let fy = botTop + botH * 0.2;
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(26);
   doc.setTextColor(255, 255, 255);
-  doc.text("Scan & Rate Us", pageW / 2, botTop + botH * 0.38, {
-    align: "center",
-  });
+  doc.text("Scan ★★★ Rate Us", cx, fy, { align: "center" });
+  fy += 30;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(161, 161, 161);
-  doc.text(
-    "Takes 30 seconds • Helps us serve you better",
-    pageW / 2,
-    botTop + botH * 0.52,
-    { align: "center" },
-  );
+  doc.text("Takes 30 seconds • Helps us serve you better", cx, fy, {
+    align: "center",
+  });
+  fy += 24;
 
   doc.setFontSize(20);
   doc.setTextColor(...ORANGE);
-  doc.text("★ ★ ★ ★ ★", pageW / 2, botTop + botH * 0.67, {
-    align: "center",
-  });
+  doc.text("★★★★★", cx, fy, { align: "center" });
+  fy += 30;
 
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
   const footLines = doc.splitTextToSize(
     "Your honest feedback shapes our service",
     pageW - 100,
   );
-  const noteLh = 9 * 1.15;
-  const noteBlockH = (footLines.length - 1) * noteLh;
-  const noteStartY = botTop + botH * 0.84 - noteBlockH / 2;
-  doc.text(footLines, pageW / 2, noteStartY, {
+  doc.text(footLines, cx, fy, {
     align: "center",
-    lineHeightFactor: 1.15,
+    lineHeightFactor: 1.2,
   });
 
   doc.save(`ReviewBoost-${sanitizeFilename(venue)}.pdf`);
