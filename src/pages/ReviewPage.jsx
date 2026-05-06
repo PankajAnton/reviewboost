@@ -147,6 +147,8 @@ export default function ReviewPage() {
 
   /** rate | promoter | detractor | doneHigh | doneLow */
   const [phase, setPhase] = useState("rate");
+  /** Three shuffled promoter strings (name substituted) shown for 4–5★ flow */
+  const [promoterDisplayTemplates, setPromoterDisplayTemplates] = useState([]);
   /** Index of preset card chosen in promoter flow (for highlight); draft holds editable text */
   const [promoterPresetIndex, setPromoterPresetIndex] = useState(null);
   const [promoterDraft, setPromoterDraft] = useState("");
@@ -166,6 +168,7 @@ export default function ReviewPage() {
       setFood(0);
       setService(0);
       setAtmosphere(0);
+      setPromoterDisplayTemplates([]);
       setPromoterPresetIndex(null);
       setPromoterDraft("");
       setFeedbackFood("");
@@ -228,8 +231,15 @@ export default function ReviewPage() {
     setPromoterPresetIndex(null);
     setPromoterDraft("");
     if (templates) {
+      const name = restaurant?.name ?? "";
+      const pool = templates.map((t) =>
+        t.replace(/\[RESTAURANT\]/g, name),
+      );
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      setPromoterDisplayTemplates(shuffled.slice(0, 3));
       setPhase("promoter");
     } else {
+      setPromoterDisplayTemplates([]);
       setPhase("detractor");
     }
   }
@@ -442,7 +452,7 @@ export default function ReviewPage() {
                 </div>
 
                 <div className="grid gap-3">
-                  {templates.map((text, idx) => (
+                  {promoterDisplayTemplates.map((text, idx) => (
                     <button
                       key={idx}
                       type="button"
@@ -503,6 +513,7 @@ export default function ReviewPage() {
                   type="button"
                   onClick={() => {
                     setPhase("rate");
+                    setPromoterDisplayTemplates([]);
                     setPromoterPresetIndex(null);
                     setPromoterDraft("");
                     setActionError("");

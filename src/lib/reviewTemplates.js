@@ -1,40 +1,32 @@
 /**
  * Google-style template copy for promoters (overall average ≥ 4).
- * Resolution order: most specific combination first.
+ * Pools use [RESTAURANT]; the review page substitutes the real name and shows 3 random picks.
  */
 
-const ALL_FIVES = [
-  "Absolutely phenomenal! The food was outstanding, service was impeccable, and the atmosphere was electric. Easily one of the best dining experiences I've ever had. A must-visit!",
-  "From the moment we walked in, everything felt special. Incredible flavors, warm staff, and a beautiful ambiance. We'll definitely be back!",
-  "Perfect in every way — the food, the people, the vibe. This place has set a new standard for dining. Highly recommend!",
+const ALL_5_STAR_TEMPLATES = [
+  "[RESTAURANT] never disappoints! Every visit feels special — the food is consistently amazing and the team is so warm and welcoming.",
+  "Had a wonderful dinner at [RESTAURANT]. Portions were generous, flavors were spot on, and service was attentive without being intrusive.",
+  "[RESTAURANT] is our family's go-to spot now. Food quality is top notch and the staff always makes us feel at home.",
+  "Visited [RESTAURANT] for the first time and absolutely loved it. Fresh ingredients, bold flavors, great ambiance. Will definitely be back!",
+  "The team at [RESTAURANT] really knows how to take care of their guests. Exceptional food and even better service.",
+  "Best meal I've had in a long time! [RESTAURANT] sets the bar really high. Highly recommend to everyone.",
+  "[RESTAURANT] exceeded all expectations. From the moment we walked in to the last bite — everything was perfect.",
+  "Such a gem! [RESTAURANT] has the perfect blend of great food, good vibes, and friendly staff. A must visit for everyone!",
+  "Absolutely phenomenal experience at [RESTAURANT]. The flavors were incredible and the staff went above and beyond. Can't wait to come back!",
+  "[RESTAURANT] is simply outstanding. Great food, wonderful ambiance, and service that makes you feel truly valued. Highly recommended!",
 ];
 
-const FOOD5_SVC5_ATM4 = [
-  "The food and service were absolutely top-notch. Great ambiance too — overall a wonderful evening. Would highly recommend to anyone looking for a quality meal!",
-  "Exceptional food and incredibly attentive staff. Lovely atmosphere to top it off. One of our favorite spots now!",
-];
-
-const FOOD5_SVC4_ATM5 = [
-  "The food blew us away and the atmosphere was stunning. Service was great too. A restaurant that truly delivers on all fronts!",
-  "Amazing flavors in a beautiful setting. Staff were friendly and helpful. Definitely coming back!",
-];
-
-const FOOD4_SVC5_ATM5 = [
-  "Wonderful experience — the service was exceptional and the vibe was perfect. Food was delicious too. Loved every minute!",
-  "Great food, outstanding service, and a gorgeous atmosphere. This place knows how to make you feel welcome!",
-];
-
-const FOOD5_OTHERS_34 = [
-  "The food here is seriously impressive — flavors were on point and portions generous. Good service and a comfortable setting. Worth visiting for the food alone!",
-];
-
-const SERVICE5_OTHERS_34 = [
-  "The staff here are exceptional — so attentive and friendly. Good food and a pleasant atmosphere. The service alone makes it worth coming back!",
-];
-
-const GENERAL_FOUR_PLUS = [
-  "Really enjoyed our visit! Good food, friendly staff, and a nice atmosphere. Would recommend to friends and family.",
-  "Solid experience overall. The food was tasty, service was prompt, and the place had a good vibe. Will return!",
+const ALL_4_STAR_TEMPLATES = [
+  "Really enjoyed our time at [RESTAURANT]. Good food, pleasant atmosphere, and helpful staff. Would definitely recommend!",
+  "[RESTAURANT] is a solid choice for a good meal out. Food was tasty and service was prompt and friendly.",
+  "Had a great experience at [RESTAURANT]. Food was fresh and flavorful, staff was very accommodating throughout.",
+  "[RESTAURANT] offers a good dining experience overall. Nice ambiance, good food, and attentive service.",
+  "We enjoyed our visit to [RESTAURANT]. Food was well prepared and staff made us feel welcome throughout.",
+  "Good food and comfortable setting at [RESTAURANT]. Will definitely recommend to friends and family.",
+  "[RESTAURANT] is a reliable spot for a satisfying meal. Consistent quality and good service every time.",
+  "Visited [RESTAURANT] recently and had a pleasant experience. Fresh food, quick service, and a nice atmosphere overall.",
+  "[RESTAURANT] impressed us with their food quality and friendly service. A great place for a family dinner or casual outing.",
+  "Solid experience at [RESTAURANT]. The food hit the spot and the staff were attentive and courteous throughout our visit.",
 ];
 
 /**
@@ -49,27 +41,11 @@ export function resolvePromoterTemplates(f, s, a) {
     return { average, templates: null };
   }
 
-  const in34 = (n) => n >= 3 && n <= 4;
-
-  if (f === 5 && s === 5 && a === 5) {
-    return { average, templates: ALL_FIVES };
+  const stars = roundOverallForLegacyStars(average);
+  if (stars === 5) {
+    return { average, templates: ALL_5_STAR_TEMPLATES };
   }
-  if (f === 5 && s === 5 && a === 4) {
-    return { average, templates: FOOD5_SVC5_ATM4 };
-  }
-  if (f === 5 && s === 4 && a === 5) {
-    return { average, templates: FOOD5_SVC4_ATM5 };
-  }
-  if (f === 4 && s === 5 && a === 5) {
-    return { average, templates: FOOD4_SVC5_ATM5 };
-  }
-  if (f === 5 && in34(s) && in34(a)) {
-    return { average, templates: FOOD5_OTHERS_34 };
-  }
-  if (s === 5 && in34(f) && in34(a)) {
-    return { average, templates: SERVICE5_OTHERS_34 };
-  }
-  return { average, templates: GENERAL_FOUR_PLUS };
+  return { average, templates: ALL_4_STAR_TEMPLATES };
 }
 
 export function roundOverallForLegacyStars(average) {
