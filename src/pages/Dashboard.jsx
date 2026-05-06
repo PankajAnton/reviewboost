@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabaseClient.js";
 import { getPublicAppBaseUrl, getReviewPageUrlForQr } from "../lib/appBaseUrl.js";
+import { normalizeOwnerPlan, planUsageBannerLine } from "../lib/plans.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { LogoDark } from "../components/Logo.jsx";
 import {
@@ -73,13 +74,21 @@ export default function Dashboard() {
   const [editError, setEditError] = useState("");
   const [savingEditId, setSavingEditId] = useState(null);
   const [deletingRestaurantId, setDeletingRestaurantId] = useState(null);
+  const [ownerPlan, setOwnerPlan] = useState(() => normalizeOwnerPlan(null));
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
     setDataError("");
     setLoadingData(true);
 
-    const [rRes, vRes] = await Promise.all([
+    const [pRes, rRes, vRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select(
+          "plan_type, restaurant_limit, subscription_status, subscription_end_date"
+        )
+        .eq("id", user.id)
+        .maybeSingle(),
       supabase
         .from("restaurants")
         .select("id, name, google_maps_link, created_at")
@@ -93,6 +102,11 @@ export default function Dashboard() {
         .order("created_at", { ascending: false }),
     ]);
 
+    if (pRes.error) {
+      setDataError(pRes.error.message);
+      setLoadingData(false);
+      return;
+    }
     if (rRes.error) {
       setDataError(rRes.error.message);
       setLoadingData(false);
@@ -104,6 +118,7 @@ export default function Dashboard() {
       return;
     }
 
+    setOwnerPlan(normalizeOwnerPlan(pRes.data));
     setRestaurants(rRes.data || []);
     setReviews(vRes.data || []);
     setLoadingData(false);
@@ -137,6 +152,12 @@ export default function Dashboard() {
       setFormError("Please enter restaurant name and Google Maps review link.");
       return;
     }
+    if (restaurants.length >= ownerPlan.restaurant_limit) {
+      setFormError(
+        "You’ve reached your restaurant limit for your current plan. Upgrade to add more venues."
+      );
+      return;
+    }
     setSaving(true);
     const { data, error } = await supabase
       .from("restaurants")
@@ -150,7 +171,14 @@ export default function Dashboard() {
 
     setSaving(false);
     if (error) {
-      setFormError(error.message);
+      const msg = error.message || "";
+      if (msg.includes("RESTAURANT_LIMIT_REACHED")) {
+        setFormError(
+          "You’ve reached your restaurant limit. Upgrade your plan to add more venues."
+        );
+      } else {
+        setFormError(msg);
+      }
       return;
     }
     setName("");
@@ -355,24 +383,38 @@ export default function Dashboard() {
     };
   }, [reviews, restaurants, reportVenueId]);
 
+  const restaurantLimitReached =
+    !loadingData && restaurants.length >= ownerPlan.restaurant_limit;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/60 to-stone-50">
       <header className="border-b border-stone-200/80 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <Link
-            to="/"
-            aria-label="ReviewBoost home"
-            className="flex shrink-0 items-center rounded-lg transition hover:opacity-90"
-          >
-            <LogoDark size="nav" />
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="min-h-12 rounded-2xl bg-stone-100 px-5 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-200"
-          >
-            Log out
-          </button>
+        <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link
+              to="/"
+              aria-label="ReviewBoost home"
+              className="flex shrink-0 items-center rounded-lg transition hover:opacity-90"
+            >
+              <LogoDark size="nav" />
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="min-h-12 rounded-2xl bg-stone-100 px-5 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-200"
+            >
+              Log out
+            </button>
+          </div>
+          {!loadingData && !dataError ? (
+            <p className="mt-3 text-sm font-semibold text-stone-700">
+              {planUsageBannerLine(
+                ownerPlan.plan_type,
+                restaurants.length,
+                ownerPlan.restaurant_limit
+              )}
+            </p>
+          ) : null}
         </div>
       </header>
 
@@ -549,42 +591,80 @@ export default function Dashboard() {
             <p className="mt-1 text-sm text-stone-600">
               Use your public Google Maps review URL so happy guests can paste in seconds.
             </p>
-            <form onSubmit={handleAddRestaurant} className="mt-6 space-y-4">
-              {formError ? (
-                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
-                  {formError}
+
+            {loadingData ? (
+              <div className="mt-8 flex flex-col items-center gap-3 py-8">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent" />
+                <p className="text-sm text-stone-500">Loading your plan…</p>
+              </div>
+            ) : restaurantLimitReached ? (
+              <div className="mt-6 space-y-5 rounded-2xl border border-amber-200/90 bg-amber-50/70 p-6 ring-1 ring-amber-100">
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">
+                    You&apos;ve reached your restaurant limit
+                  </h3>
+                  {ownerPlan.plan_type === "growth" ? (
+                    <p className="mt-2 text-sm leading-relaxed text-stone-600">
+                      Your Growth plan supports up to{" "}
+                      {ownerPlan.restaurant_limit} venues. Remove a location to add a new one, or contact us if you need more capacity.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mt-2 text-sm leading-relaxed text-stone-600">
+                        Upgrade to Growth to add up to{" "}
+                        <span className="font-semibold text-stone-800">
+                          10 restaurants
+                        </span>
+                        , with priority support.
+                      </p>
+                      <Link
+                        to="/paywall"
+                        className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-md transition hover:bg-[#ea580c]"
+                      >
+                        Upgrade to Growth — ₹899/month
+                      </Link>
+                    </>
+                  )}
                 </div>
-              ) : null}
-              <div>
-                <label className="block text-sm font-medium text-stone-700">
-                  Restaurant name
-                </label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="mt-1.5 w-full min-h-12 rounded-2xl border border-stone-200 bg-stone-50/50 px-4 outline-none transition focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
-                  placeholder="e.g. Spice Route Kitchen"
-                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-stone-700">
-                  Google Maps review link
-                </label>
-                <input
-                  value={mapsLink}
-                  onChange={(e) => setMapsLink(e.target.value)}
-                  className="mt-1.5 w-full min-h-12 rounded-2xl border border-stone-200 bg-stone-50/50 px-4 outline-none transition focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
-                  placeholder="https://maps.google.com/..."
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full min-h-12 rounded-2xl bg-[#f97316] font-semibold text-white shadow-md transition hover:bg-[#ea580c] disabled:opacity-70"
-              >
-                {saving ? "Saving…" : "Save & generate QR"}
-              </button>
-            </form>
+            ) : (
+              <form onSubmit={handleAddRestaurant} className="mt-6 space-y-4">
+                {formError ? (
+                  <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
+                    {formError}
+                  </div>
+                ) : null}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700">
+                    Restaurant name
+                  </label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="mt-1.5 w-full min-h-12 rounded-2xl border border-stone-200 bg-stone-50/50 px-4 outline-none transition focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                    placeholder="e.g. Spice Route Kitchen"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700">
+                    Google Maps review link
+                  </label>
+                  <input
+                    value={mapsLink}
+                    onChange={(e) => setMapsLink(e.target.value)}
+                    className="mt-1.5 w-full min-h-12 rounded-2xl border border-stone-200 bg-stone-50/50 px-4 outline-none transition focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                    placeholder="https://maps.google.com/..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full min-h-12 rounded-2xl bg-[#f97316] font-semibold text-white shadow-md transition hover:bg-[#ea580c] disabled:opacity-70"
+                >
+                  {saving ? "Saving…" : "Save & generate QR"}
+                </button>
+              </form>
+            )}
           </section>
 
           <section className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">

@@ -3,6 +3,8 @@ import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Paywall from "./pages/Paywall.jsx";
+import Pricing from "./pages/Pricing.jsx";
 import ReviewPage from "./pages/ReviewPage.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
@@ -10,6 +12,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/pricing" element={<Pricing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route
@@ -17,6 +20,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/paywall"
+        element={
+          <ProtectedRoute>
+            <Paywall />
           </ProtectedRoute>
         }
       />

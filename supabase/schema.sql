@@ -81,7 +81,10 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
   restaurant_name text,
-  plan text not null default 'free'
+  plan_type text not null default 'trial' check (plan_type in ('trial', 'starter', 'growth')),
+  restaurant_limit integer not null default 1 check (restaurant_limit in (1, 3, 10)),
+  subscription_status text not null default 'trial',
+  subscription_end_date timestamptz
 );
 
 create index if not exists idx_profiles_email on public.profiles (email);
@@ -103,8 +106,22 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email)
+  insert into public.profiles (
+    id,
+    email,
+    plan_type,
+    restaurant_limit,
+    subscription_status,
+    subscription_end_date
+  )
+  values (
+    new.id,
+    new.email,
+    'trial',
+    1,
+    'trial',
+    now() + interval '30 days'
+  )
   on conflict (id) do update set email = excluded.email;
   return new;
 end;
@@ -114,6 +131,45 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+create or replace function public.enforce_owner_restaurant_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  lim integer;
+  cnt integer;
+begin
+  select coalesce(p.restaurant_limit, 1)
+    into lim
+  from public.profiles p
+  where p.id = new.owner_id;
+
+  if lim is null then
+    lim := 1;
+  end if;
+
+  select count(*)::integer
+    into cnt
+  from public.restaurants
+  where owner_id = new.owner_id;
+
+  if cnt >= lim then
+    raise exception 'RESTAURANT_LIMIT_REACHED'
+      using hint = 'Upgrade your plan for more venues.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists restaurants_enforce_limit_before_insert on public.restaurants;
+create trigger restaurants_enforce_limit_before_insert
+  before insert on public.restaurants
+  for each row
+  execute function public.enforce_owner_restaurant_limit();
 
 create or replace function public.handle_auth_user_email_update()
 returns trigger

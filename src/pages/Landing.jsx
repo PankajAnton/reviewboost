@@ -33,9 +33,34 @@ const features = [
 ];
 
 const tiers = [
-  { name: "Free", price: "₹0", blurb: "1 location · basic QR", highlight: false },
-  { name: "Starter", price: "₹499/mo", blurb: "Up to 3 locations · email support", highlight: true },
-  { name: "Pro", price: "₹999/mo", blurb: "Unlimited · priority support", highlight: false },
+  {
+    name: "Free trial",
+    price: "₹0",
+    period: "30 days",
+    blurb: "1 restaurant · all features",
+    highlight: false,
+    href: "/signup",
+    cta: "Start Free Trial",
+    ctaPrimary: false,
+  },
+  {
+    name: "Starter",
+    price: "₹499/mo",
+    blurb: "Up to 3 restaurants · all core features",
+    highlight: false,
+    href: "/pricing",
+    cta: "View plans",
+    ctaPrimary: false,
+  },
+  {
+    name: "Growth",
+    price: "₹899/mo",
+    blurb: "Up to 10 restaurants · priority support",
+    highlight: true,
+    href: "/pricing",
+    cta: "View plans",
+    ctaPrimary: true,
+  },
 ];
 
 export default function Landing() {
@@ -52,6 +77,12 @@ export default function Landing() {
           <LogoDark size="nav" />
         </Link>
         <nav className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
+          <Link
+            to="/pricing"
+            className="inline-flex min-h-0 flex-1 items-center justify-center rounded-xl px-3 py-2.5 text-center text-sm font-medium leading-snug text-stone-700 transition hover:bg-white/80 hover:shadow-md sm:flex-none sm:px-4 sm:py-2.5"
+          >
+            Pricing
+          </Link>
           {authLoading ? null : session ? (
             <Link
               to="/dashboard"
@@ -154,19 +185,22 @@ export default function Landing() {
                       Popular
                     </span>
                   ) : null}
-                  <h3 className="text-lg font-semibold text-stone-900">{t.name}</h3>
-                  <p className="mt-3 text-3xl font-bold text-stone-900">{t.price}</p>
-                  <p className="mt-2 text-sm text-stone-600">{t.blurb}</p>
-                  <Link
-                    to="/signup"
-                    className={`mt-6 inline-flex min-h-0 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold leading-snug transition ${
-                      t.highlight
-                        ? "bg-[#f97316] text-white shadow-sm hover:bg-[#ea580c] hover:shadow-md"
-                        : "bg-stone-100 text-stone-800 hover:bg-stone-200"
-                    }`}
-                  >
-                    Choose {t.name}
-                  </Link>
+              <h3 className="text-lg font-semibold text-stone-900">{t.name}</h3>
+              <p className="mt-3 text-3xl font-bold text-stone-900">{t.price}</p>
+              {t.period ? (
+                <p className="mt-1 text-xs font-medium text-stone-500">{t.period}</p>
+              ) : null}
+              <p className="mt-2 text-sm text-stone-600">{t.blurb}</p>
+              <Link
+                to={t.href}
+                className={`mt-6 inline-flex min-h-0 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold leading-snug transition ${
+                  t.ctaPrimary
+                    ? "bg-[#f97316] text-white shadow-sm hover:bg-[#ea580c] hover:shadow-md"
+                    : "bg-stone-100 text-stone-800 hover:bg-stone-200"
+                }`}
+              >
+                {t.cta}
+              </Link>
                 </div>
               ))}
             </div>
