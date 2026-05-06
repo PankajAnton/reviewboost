@@ -4,3 +4,6 @@
 # Guests invoke this after submitting a review (no user JWT). Abuse limited by fresh review_id + server checks.
 [functions.send-low-rating-email]
 verify_jwt = false
+
+[functions.create-razorpay-order]
+verify_jwt = true

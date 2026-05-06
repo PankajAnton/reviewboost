@@ -7,8 +7,29 @@ import { loadRazorpayScript } from "../lib/razorpayCheckout.js";
 
 const SUBSCRIPTION_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** When invoke fails before HTTP (relay/DNS/CORS/ad-block), Supabase shows this generic message. */
+const EDGE_FN_SETUP_HINT =
+  "Supabase could not reach the payment backend. Deploy the Edge Function create-razorpay-order to this same project, then add secrets RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (Dashboard → Edge Functions → Secrets, or supabase secrets set …). Finally run: supabase functions deploy create-razorpay-order. Also confirm VITE_SUPABASE_URL matches that project and try without VPN/ad-blockers.";
+
 function subscriptionEndIso() {
   return new Date(Date.now() + SUBSCRIPTION_MS).toISOString();
+}
+
+function describeEdgeInvokeFailure(orderFnErr, orderData) {
+  const serverMsg =
+    orderData && typeof orderData === "object" && typeof orderData.error === "string"
+      ? orderData.error
+      : null;
+  const clientMsg =
+    orderFnErr && typeof orderFnErr.message === "string" ? orderFnErr.message : "";
+
+  if (serverMsg) return serverMsg;
+
+  if (/failed to send a request to the edge function/i.test(clientMsg)) {
+    return EDGE_FN_SETUP_HINT;
+  }
+
+  return clientMsg || EDGE_FN_SETUP_HINT;
 }
 
 export default function Paywall() {
@@ -49,6 +70,18 @@ export default function Paywall() {
       return;
     }
 
+    const sbUrl = (import.meta.env.VITE_SUPABASE_URL || "").trim();
+    if (
+      !sbUrl ||
+      sbUrl.includes("YOUR_PROJECT_ID") ||
+      sbUrl.includes("YOUR_PROJECT")
+    ) {
+      setError(
+        "Set VITE_SUPABASE_URL in .env to your real Supabase Project URL (Dashboard → Settings → API), restart the dev server, and try again."
+      );
+      return;
+    }
+
     const starter = kind === "starter";
     const amount = starter ? 49900 : 89900;
     const description = starter
@@ -66,10 +99,19 @@ export default function Paywall() {
       return;
     }
 
+    const { data: orderData, error: orderFnErr } = await supabase.functions.invoke(
+      "create-razorpay-order",
+      { body: { amount } }
+    );
+    if (orderFnErr || !orderData?.order_id) {
+      setError(describeEdgeInvokeFailure(orderFnErr, orderData));
+      setBusy(null);
+      return;
+    }
+
     const options = {
       key: keyId,
-      amount,
-      currency: "INR",
+      order_id: orderData.order_id,
       name: "ReviewBoost",
       description,
       handler: async () => {
@@ -133,7 +175,7 @@ export default function Paywall() {
 
         {error ? (
           <div
-            className="mx-auto mt-8 max-w-xl rounded-2xl bg-red-50 px-4 py-3 text-center text-sm text-red-700 ring-1 ring-red-100"
+            className="mx-auto mt-8 max-w-xl rounded-2xl bg-red-50 px-4 py-4 text-left text-sm leading-relaxed text-red-700 ring-1 ring-red-100"
             role="alert"
           >
             {error}
