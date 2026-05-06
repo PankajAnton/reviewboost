@@ -8,24 +8,13 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { LogoDark } from "../components/Logo.jsx";
 import DashboardPlanBanners from "../components/DashboardPlanBanners.jsx";
 import { getDashboardAccessDecision } from "../lib/subscriptionAccess.js";
+import { isProfilesTableUnavailable } from "../lib/supabaseErrors.js";
 import {
   filterReviewsForOwnerVenues,
   splitByCalendarMonth,
   countFeedbackBuckets,
   monthOverMonthGrowth,
 } from "../lib/dashboardMetrics.js";
-
-/** PostgREST when `public.profiles` does not exist or isn't exposed yet */
-function isProfilesTableUnavailable(error) {
-  if (!error || typeof error.message !== "string") return false;
-  const code = error.code;
-  const m = error.message.toLowerCase();
-  if (code === "PGRST205" && m.includes("profiles")) return true;
-  return (
-    m.includes("profiles") &&
-    (m.includes("schema cache") || m.includes("could not find the table"))
-  );
-}
 
 function GrowthPill({ badge }) {
   const cls =

@@ -10,21 +10,14 @@ import {
 } from "../lib/planFeatureLists.js";
 import { PlanFeatureChecklist } from "../components/PlanFeatureChecklist.jsx";
 import { getDashboardAccessDecision } from "../lib/subscriptionAccess.js";
+import {
+  isProfilesAuthUserFkViolation,
+  isProfilesTableUnavailable,
+} from "../lib/supabaseErrors.js";
 
 const TRIAL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const shellFont = { fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif' };
-
-function isProfilesTableUnavailable(error) {
-  if (!error || typeof error.message !== "string") return false;
-  const code = error.code;
-  const m = error.message.toLowerCase();
-  if (code === "PGRST205" && m.includes("profiles")) return true;
-  return (
-    m.includes("profiles") &&
-    (m.includes("schema cache") || m.includes("could not find the table"))
-  );
-}
 
 export default function SelectPlan() {
   const navigate = useNavigate();
@@ -79,6 +72,12 @@ export default function SelectPlan() {
       if (isProfilesTableUnavailable(err)) {
         setError(
           "Supabase could not find public.profiles — create it in your Supabase project. Open Dashboard → SQL Editor, paste and run supabase/schema.sql from this repo (full setup). If restaurants/reviews tables already exist, run supabase/quick_fix_profiles.sql instead. Wait ~1 minute for the schema cache to refresh, reload this page, then try Start Free Trial again."
+        );
+        return;
+      }
+      if (isProfilesAuthUserFkViolation(err)) {
+        setError(
+          "Your login session doesn’t match this Supabase project’s users (profiles.id must exist in Auth). This usually happens if VITE_SUPABASE_URL / anon key were changed after you signed up, or the browser still has an old session. Fix: confirm .env points at the same project where your account lives → Log out → sign in again (or create a new account). If you switched Supabase projects, clear site data for this site or use a private window, then sign up again on the new project."
         );
         return;
       }
