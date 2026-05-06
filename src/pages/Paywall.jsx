@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { LogoDark } from "../components/Logo.jsx";
@@ -11,25 +12,73 @@ const SUBSCRIPTION_MS = 30 * 24 * 60 * 60 * 1000;
 const EDGE_FN_SETUP_HINT =
   "Supabase could not reach the payment backend. Deploy the Edge Function create-razorpay-order to this same project, then add secrets RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (Dashboard → Edge Functions → Secrets, or supabase secrets set …). Finally run: supabase functions deploy create-razorpay-order. Also confirm VITE_SUPABASE_URL matches that project and try without VPN/ad-blockers.";
 
+const EDGE_FN_NON_2XX_FALLBACK =
+  "The payment Edge Function returned an error. Open Dashboard → Edge Functions → create-razorpay-order → Logs. Important: Razorpay secrets must be set on Supabase (Edge Function secrets), not only in your local .env — add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET there, then redeploy: supabase functions deploy create-razorpay-order.";
+
 function subscriptionEndIso() {
   return new Date(Date.now() + SUBSCRIPTION_MS).toISOString();
 }
 
-function describeEdgeInvokeFailure(orderFnErr, orderData) {
-  const serverMsg =
-    orderData && typeof orderData === "object" && typeof orderData.error === "string"
-      ? orderData.error
+/**
+ * When invoke fails, Supabase often leaves `data` null and only sets a generic error message.
+ * For HTTP errors, the JSON body is on error.context (Response) — see Supabase docs.
+ * @param {unknown} orderFnErr
+ * @param {unknown} orderData
+ */
+async function resolveInvokeFailureMessage(orderFnErr, orderData) {
+  if (
+    orderData &&
+    typeof orderData === "object" &&
+    orderData !== null &&
+    typeof /** @type {{ error?: unknown }} */ (orderData).error === "string"
+  ) {
+    return /** @type {{ error: string }} */ (orderData).error;
+  }
+
+  const httpCtx =
+    orderFnErr instanceof FunctionsHttpError ? orderFnErr.context : null;
+  const fallbackResp =
+    !httpCtx &&
+    orderFnErr &&
+    typeof orderFnErr === "object" &&
+    orderFnErr !== null &&
+    "context" in orderFnErr &&
+    /** @type {{ context?: unknown }} */ (orderFnErr).context instanceof Response
+      ? /** @type {{ context: Response }} */ (orderFnErr).context
       : null;
+
+  const ctx = httpCtx instanceof Response ? httpCtx : fallbackResp;
+
+  if (ctx instanceof Response) {
+    if (ctx.status === 401) {
+      return "Session rejected (401). Log out, log in again, then retry — or check Edge Function logs.";
+    }
+    try {
+      const ct = (ctx.headers.get("Content-Type") || "").toLowerCase();
+      if (ct.includes("application/json")) {
+        const body = await ctx.clone().json();
+        if (body && typeof body === "object") {
+          if (typeof body.error === "string") return body.error;
+          if (typeof body.message === "string") return body.message;
+        }
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+  }
+
   const clientMsg =
     orderFnErr && typeof orderFnErr.message === "string" ? orderFnErr.message : "";
-
-  if (serverMsg) return serverMsg;
 
   if (/failed to send a request to the edge function/i.test(clientMsg)) {
     return EDGE_FN_SETUP_HINT;
   }
 
-  return clientMsg || EDGE_FN_SETUP_HINT;
+  if (/non-2xx/i.test(clientMsg)) {
+    return EDGE_FN_NON_2XX_FALLBACK;
+  }
+
+  return clientMsg || EDGE_FN_NON_2XX_FALLBACK;
 }
 
 export default function Paywall() {
@@ -104,7 +153,7 @@ export default function Paywall() {
       { body: { amount } }
     );
     if (orderFnErr || !orderData?.order_id) {
-      setError(describeEdgeInvokeFailure(orderFnErr, orderData));
+      setError(await resolveInvokeFailureMessage(orderFnErr, orderData));
       setBusy(null);
       return;
     }

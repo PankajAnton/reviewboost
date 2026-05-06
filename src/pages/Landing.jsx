@@ -32,39 +32,21 @@ const features = [
   },
 ];
 
-const tiers = [
-  {
-    name: "Free trial",
-    price: "₹0",
-    period: "30 days",
-    blurb: "1 restaurant · all features",
-    highlight: false,
-    href: "/signup",
-    cta: "Start Free Trial",
-    ctaPrimary: false,
-  },
-  {
-    name: "Starter",
-    price: "₹499/mo",
-    blurb: "Up to 3 restaurants · all core features",
-    highlight: false,
-    href: "/pricing",
-    cta: "View plans",
-    ctaPrimary: false,
-  },
-  {
-    name: "Growth",
-    price: "₹899/mo",
-    blurb: "Up to 10 restaurants · priority support",
-    highlight: true,
-    href: "/pricing",
-    cta: "View plans",
-    ctaPrimary: true,
-  },
-];
+function PlanCheckLi({ children }) {
+  return (
+    <li className="flex gap-2 text-sm text-stone-600">
+      <span className="shrink-0 text-emerald-600" aria-hidden>
+        ✓
+      </span>
+      <span>{children}</span>
+    </li>
+  );
+}
 
 export default function Landing() {
   const { session, loading: authLoading } = useAuth();
+
+  const paidPlanHref = session ? "/paywall" : "/signup";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/80 via-stone-50 to-white">
@@ -164,46 +146,100 @@ export default function Landing() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">
-                Simple pricing
+                Choose your plan
               </h2>
               <p className="mt-3 text-stone-600">
-                Grow at your pace. Upgrade when you open your next location.
+                Unlock more locations with a monthly subscription. Paid plans checkout securely with Razorpay after you create an account.
               </p>
             </div>
-            <div className="mx-auto mt-12 grid max-w-4xl gap-6 sm:grid-cols-3">
-              {tiers.map((t) => (
-                <div
-                  key={t.name}
-                  className={`relative flex flex-col rounded-2xl p-6 shadow-md ring-1 transition hover:shadow-lg ${
-                    t.highlight
-                      ? "bg-gradient-to-b from-amber-50 to-white ring-[#f97316]/40"
-                      : "bg-white ring-stone-200/70"
-                  }`}
+
+            <div className="mx-auto mt-12 grid max-w-6xl gap-6 lg:grid-cols-3">
+              {/* Free trial */}
+              <div className="flex flex-col rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
+                <h3 className="text-lg font-bold text-stone-900">Free trial</h3>
+                <p className="mt-1 text-sm font-medium text-stone-500">
+                  Try everything before you commit
+                </p>
+                <p className="mt-4 text-3xl font-bold tabular-nums text-stone-900">
+                  ₹0
+                </p>
+                <p className="mt-1 text-sm font-medium text-stone-500">30 days · 1 restaurant</p>
+                <ul className="mt-6 flex flex-1 flex-col gap-2.5">
+                  <PlanCheckLi>All product features unlocked during trial</PlanCheckLi>
+                  <PlanCheckLi>Smart review filtering</PlanCheckLi>
+                  <PlanCheckLi>QR codes + PDF download</PlanCheckLi>
+                  <PlanCheckLi>Email notifications</PlanCheckLi>
+                  <PlanCheckLi>Dashboard access</PlanCheckLi>
+                </ul>
+                <Link
+                  to="/signup"
+                  className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl border-2 border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-50"
                 >
-                  {t.highlight ? (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#f97316] px-3 py-1 text-xs font-semibold text-white shadow-md">
-                      Popular
+                  Start Free Trial
+                </Link>
+              </div>
+
+              {/* Starter */}
+              <div className="flex flex-col rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
+                <h3 className="text-lg font-bold text-stone-900">Starter</h3>
+                <p className="mt-1 text-sm font-medium text-stone-500">
+                  Perfect for single restaurants
+                </p>
+                <p className="mt-4 text-3xl font-bold tabular-nums text-stone-900">
+                  ₹499<span className="text-lg font-semibold text-stone-500">/mo</span>
+                </p>
+                <ul className="mt-6 flex flex-1 flex-col gap-2.5">
+                  <PlanCheckLi>Up to 3 restaurants</PlanCheckLi>
+                  <PlanCheckLi>Smart review filtering</PlanCheckLi>
+                  <PlanCheckLi>QR codes + PDF download</PlanCheckLi>
+                  <PlanCheckLi>Email notifications</PlanCheckLi>
+                  <PlanCheckLi>Dashboard access</PlanCheckLi>
+                </ul>
+                <Link
+                  to={paidPlanHref}
+                  className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-md transition hover:bg-[#ea580c]"
+                >
+                  Choose Starter – ₹499
+                </Link>
+              </div>
+
+              {/* Growth */}
+              <div className="relative flex flex-col rounded-2xl bg-gradient-to-b from-amber-50/90 to-white p-6 shadow-lg ring-2 ring-[#f97316]/55">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#f97316] px-3 py-1 text-xs font-semibold text-white shadow-md">
+                  Most Popular
+                </span>
+                <h3 className="text-lg font-bold text-stone-900">Growth</h3>
+                <p className="mt-1 text-sm font-medium text-stone-500">
+                  For restaurant chains
+                </p>
+                <p className="mt-4 text-3xl font-bold tabular-nums text-stone-900">
+                  ₹899<span className="text-lg font-semibold text-stone-500">/mo</span>
+                </p>
+                <ul className="mt-6 flex flex-1 flex-col gap-2.5">
+                  <PlanCheckLi>Up to 10 restaurants</PlanCheckLi>
+                  <PlanCheckLi>Everything in Starter</PlanCheckLi>
+                  <li className="flex gap-2 text-sm text-stone-600">
+                    <span className="shrink-0 font-semibold text-[#ea580c]" aria-hidden>
+                      ★
                     </span>
-                  ) : null}
-              <h3 className="text-lg font-semibold text-stone-900">{t.name}</h3>
-              <p className="mt-3 text-3xl font-bold text-stone-900">{t.price}</p>
-              {t.period ? (
-                <p className="mt-1 text-xs font-medium text-stone-500">{t.period}</p>
-              ) : null}
-              <p className="mt-2 text-sm text-stone-600">{t.blurb}</p>
-              <Link
-                to={t.href}
-                className={`mt-6 inline-flex min-h-0 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold leading-snug transition ${
-                  t.ctaPrimary
-                    ? "bg-[#f97316] text-white shadow-sm hover:bg-[#ea580c] hover:shadow-md"
-                    : "bg-stone-100 text-stone-800 hover:bg-stone-200"
-                }`}
-              >
-                {t.cta}
-              </Link>
-                </div>
-              ))}
+                    <span>Priority support</span>
+                  </li>
+                </ul>
+                <Link
+                  to={paidPlanHref}
+                  className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-md transition hover:bg-[#ea580c]"
+                >
+                  Choose Growth – ₹899
+                </Link>
+              </div>
             </div>
+
+            <p className="mx-auto mt-10 max-w-xl text-center text-xs text-stone-500">
+              Already exploring?{" "}
+              <Link to="/pricing" className="font-semibold text-[#ea580c] hover:underline">
+                Full pricing page
+              </Link>
+            </p>
           </div>
         </section>
 
