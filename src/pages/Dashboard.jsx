@@ -13,6 +13,18 @@ import {
   monthOverMonthGrowth,
 } from "../lib/dashboardMetrics.js";
 
+/** PostgREST when `public.profiles` does not exist or isn't exposed yet */
+function isProfilesTableUnavailable(error) {
+  if (!error || typeof error.message !== "string") return false;
+  const code = error.code;
+  const m = error.message.toLowerCase();
+  if (code === "PGRST205" && m.includes("profiles")) return true;
+  return (
+    m.includes("profiles") &&
+    (m.includes("schema cache") || m.includes("could not find the table"))
+  );
+}
+
 function GrowthPill({ badge }) {
   const cls =
     badge.variant === "up"
@@ -75,10 +87,12 @@ export default function Dashboard() {
   const [savingEditId, setSavingEditId] = useState(null);
   const [deletingRestaurantId, setDeletingRestaurantId] = useState(null);
   const [ownerPlan, setOwnerPlan] = useState(() => normalizeOwnerPlan(null));
+  const [profileSetupNotice, setProfileSetupNotice] = useState("");
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
     setDataError("");
+    setProfileSetupNotice("");
     setLoadingData(true);
 
     const [pRes, rRes, vRes] = await Promise.all([
@@ -103,9 +117,18 @@ export default function Dashboard() {
     ]);
 
     if (pRes.error) {
-      setDataError(pRes.error.message);
-      setLoadingData(false);
-      return;
+      if (isProfilesTableUnavailable(pRes.error)) {
+        setOwnerPlan(normalizeOwnerPlan(null));
+        setProfileSetupNotice(
+          "Your Supabase project is missing public.profiles (or PostgREST hasn’t picked it up yet). In the SQL Editor, run supabase/schema.sql or apply migrations from supabase/migrations/ — including profiles and plan columns — then refresh this page. Until then, limits default to trial (1 restaurant)."
+        );
+      } else {
+        setDataError(pRes.error.message);
+        setLoadingData(false);
+        return;
+      }
+    } else {
+      setOwnerPlan(normalizeOwnerPlan(pRes.data));
     }
     if (rRes.error) {
       setDataError(rRes.error.message);
@@ -118,7 +141,6 @@ export default function Dashboard() {
       return;
     }
 
-    setOwnerPlan(normalizeOwnerPlan(pRes.data));
     setRestaurants(rRes.data || []);
     setReviews(vRes.data || []);
     setLoadingData(false);
@@ -414,6 +436,14 @@ export default function Dashboard() {
                 ownerPlan.restaurant_limit
               )}
             </p>
+          ) : null}
+          {!loadingData && profileSetupNotice ? (
+            <div
+              className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-100"
+              role="status"
+            >
+              {profileSetupNotice}
+            </div>
           ) : null}
         </div>
       </header>

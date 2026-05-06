@@ -259,44 +259,11 @@ export default function Signup() {
                   }
                   className="mt-1.5 w-full min-h-12 rounded-2xl border border-stone-200 bg-stone-50/50 px-4 text-center font-mono text-lg tracking-[0.35em] text-stone-900 shadow-sm outline-none transition focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
                 />
-                <div className="mt-3 space-y-2 rounded-2xl bg-amber-50/80 p-4 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-100">
-                  <p className="font-semibold text-amber-900">OTP nahi aa raha?</p>
-                  <ol className="list-decimal space-y-1 pl-4 text-amber-900/90">
-                    <li>
-                      Supabase Dashboard → <strong>Authentication</strong> →{" "}
-                      <strong>Providers</strong> → Email →{" "}
-                      <strong>Confirm email</strong> ON hona chahiye.
-                    </li>
-                    <li>
-                      <strong>Authentication</strong> → <strong>Email Templates</strong> →{" "}
-                      <strong>Confirm signup</strong>: body mein{" "}
-                      <code className="rounded bg-white px-1 py-0.5 text-[11px]">
-                        {`{{ .Token }}`}
-                      </code>{" "}
-                      zaroor rakho (warna sirf link aata hai, code nahi).{" "}
-                      <span className="text-amber-800/90">
-                        Ready HTML:{" "}
-                        <code className="rounded bg-white px-1">supabase/email-templates/confirm-signup.html</code>
-                      </span>
-                    </li>
-                    <li>Spam / Promotions folder check karo; thoda wait karo (1–2 min).</li>
-                    <li>
-                      Free tier pe deliverability ke liye{" "}
-                      <strong>Project Settings → Auth → SMTP</strong> (custom provider) kabhi-kabhi zaroori hota hai.
-                    </li>
-                  </ol>
-                  <p className="pt-1 text-[11px] text-amber-800/80">
-                    Docs:{" "}
-                    <a
-                      href="https://supabase.com/docs/guides/auth/auth-email-templates"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-medium underline hover:text-[#f97316]"
-                    >
-                      Email templates
-                    </a>
-                  </p>
-                </div>
+                <p className="mt-2 text-xs leading-relaxed text-stone-500">
+                  Check spam or promotions if you don&apos;t see it within a minute or two. Codes expire after a short time — use{" "}
+                  <span className="font-medium text-stone-600">Resend code</span>{" "}
+                  if needed.
+                </p>
               </div>
 
               <button
