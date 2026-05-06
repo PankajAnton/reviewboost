@@ -60,7 +60,7 @@ export default function Signup() {
     }
 
     if (data.session) {
-      navigate("/dashboard", { replace: true });
+      navigate("/select-plan", { replace: true });
       return;
     }
 
@@ -113,7 +113,7 @@ export default function Signup() {
     }
 
     if (data?.session) {
-      navigate("/dashboard", { replace: true });
+      navigate("/select-plan", { replace: true });
       return;
     }
     setError("Could not complete verification. Try logging in.");

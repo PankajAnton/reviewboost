@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabaseClient.js";
 import { getPublicAppBaseUrl, getReviewPageUrlForQr } from "../lib/appBaseUrl.js";
 import { normalizeOwnerPlan, planUsageBannerLine } from "../lib/plans.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { LogoDark } from "../components/Logo.jsx";
+import DashboardPlanBanners from "../components/DashboardPlanBanners.jsx";
+import { getDashboardAccessDecision } from "../lib/subscriptionAccess.js";
 import {
   filterReviewsForOwnerVenues,
   splitByCalendarMonth,
@@ -61,6 +63,8 @@ function DashboardMetricCard({ iconBg, childrenIcon, label, value, badge }) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [restaurants, setRestaurants] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -87,12 +91,20 @@ export default function Dashboard() {
   const [savingEditId, setSavingEditId] = useState(null);
   const [deletingRestaurantId, setDeletingRestaurantId] = useState(null);
   const [ownerPlan, setOwnerPlan] = useState(() => normalizeOwnerPlan(null));
-  const [profileSetupNotice, setProfileSetupNotice] = useState("");
+  const [profileSetupNeeded, setProfileSetupNeeded] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    const t = location.state?.toast;
+    if (typeof t !== "string" || !t.trim()) return;
+    setToastMessage(t.trim());
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
     setDataError("");
-    setProfileSetupNotice("");
+    setProfileSetupNeeded(false);
     setLoadingData(true);
 
     const [pRes, rRes, vRes] = await Promise.all([
@@ -119,16 +131,37 @@ export default function Dashboard() {
     if (pRes.error) {
       if (isProfilesTableUnavailable(pRes.error)) {
         setOwnerPlan(normalizeOwnerPlan(null));
-        setProfileSetupNotice(
-          "Your Supabase project is missing public.profiles (or PostgREST hasn’t picked it up yet). In the SQL Editor, run supabase/schema.sql or apply migrations from supabase/migrations/ — including profiles and plan columns — then refresh this page. Until then, limits default to trial (1 restaurant)."
-        );
+        setProfileSetupNeeded(true);
       } else {
         setDataError(pRes.error.message);
         setLoadingData(false);
         return;
       }
     } else {
-      setOwnerPlan(normalizeOwnerPlan(pRes.data));
+      const profileRow = pRes.data;
+      if (!profileRow) {
+        navigate("/select-plan", { replace: true });
+        setLoadingData(false);
+        return;
+      }
+
+      const decision = getDashboardAccessDecision(profileRow);
+      if (decision.kind === "paywall") {
+        if (decision.markExpired) {
+          await supabase
+            .from("profiles")
+            .update({ subscription_status: "expired" })
+            .eq("id", user.id);
+        }
+        navigate("/paywall", {
+          replace: true,
+          state: { reason: decision.reason },
+        });
+        setLoadingData(false);
+        return;
+      }
+
+      setOwnerPlan(normalizeOwnerPlan(profileRow));
     }
     if (rRes.error) {
       setDataError(rRes.error.message);
@@ -144,7 +177,7 @@ export default function Dashboard() {
     setRestaurants(rRes.data || []);
     setReviews(vRes.data || []);
     setLoadingData(false);
-  }, [user?.id]);
+  }, [user?.id, navigate]);
 
   useEffect(() => {
     loadAll();
@@ -410,6 +443,26 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/60 to-stone-50">
+      {toastMessage ? (
+        <div
+          className="sticky top-0 z-50 border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-950 shadow-sm sm:px-6"
+          role="status"
+        >
+          <div className="mx-auto flex max-w-5xl items-center justify-center gap-3">
+            <span>{toastMessage}</span>
+            <button
+              type="button"
+              onClick={() => setToastMessage("")}
+              className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-emerald-900 underline-offset-2 hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {!loadingData && !dataError && !profileSetupNeeded ? (
+        <DashboardPlanBanners ownerPlan={ownerPlan} />
+      ) : null}
       <header className="border-b border-stone-200/80 bg-white/90 shadow-sm backdrop-blur">
         <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -437,13 +490,39 @@ export default function Dashboard() {
               )}
             </p>
           ) : null}
-          {!loadingData && profileSetupNotice ? (
-            <div
-              className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-100"
-              role="status"
-            >
-              {profileSetupNotice}
-            </div>
+          {!loadingData && profileSetupNeeded ? (
+            <details className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-100">
+              <summary className="cursor-pointer font-semibold text-amber-950">
+                Finish database setup (trial limits active until fixed)
+              </summary>
+              <div className="mt-3 border-t border-amber-200/80 pt-3 text-xs leading-relaxed text-amber-950/95">
+                <p>
+                  Your Supabase project doesn&apos;t have{" "}
+                  <code className="rounded bg-white/90 px-1 py-0.5 font-mono text-[11px]">
+                    public.profiles
+                  </code>{" "}
+                  ready yet, or the API hasn&apos;t refreshed — wait a minute and reload after fixing.
+                </p>
+                <p className="mt-2 font-medium">Quick fix:</p>
+                <ol className="mt-1 list-decimal space-y-1 pl-4">
+                  <li>
+                    Supabase → <strong>SQL Editor</strong> → paste{" "}
+                    <code className="rounded bg-white/90 px-1 font-mono text-[11px]">
+                      supabase/quick_fix_profiles.sql
+                    </code>{" "}
+                    from this project → <strong>Run</strong>.
+                  </li>
+                  <li>
+                    Brand-new project with no tables? Run full{" "}
+                    <code className="rounded bg-white/90 px-1 font-mono text-[11px]">
+                      supabase/schema.sql
+                    </code>{" "}
+                    first, then reload here.
+                  </li>
+                  <li>Refresh this page.</li>
+                </ol>
+              </div>
+            </details>
           ) : null}
         </div>
       </header>

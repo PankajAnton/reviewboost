@@ -3,6 +3,7 @@ import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import SelectPlan from "./pages/SelectPlan.jsx";
 import Paywall from "./pages/Paywall.jsx";
 import Pricing from "./pages/Pricing.jsx";
 import ReviewPage from "./pages/ReviewPage.jsx";
@@ -20,6 +21,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/select-plan"
+        element={
+          <ProtectedRoute>
+            <SelectPlan />
           </ProtectedRoute>
         }
       />

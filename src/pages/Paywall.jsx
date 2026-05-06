@@ -1,30 +1,25 @@
 import { useCallback, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { LogoDark } from "../components/Logo.jsx";
 import { loadRazorpayScript } from "../lib/razorpayCheckout.js";
+import { FEATURES_STARTER, FEATURES_GROWTH } from "../lib/planFeatureLists.js";
+import { PlanFeatureChecklist } from "../components/PlanFeatureChecklist.jsx";
 
 const SUBSCRIPTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** When invoke fails before HTTP (relay/DNS/CORS/ad-block), Supabase shows this generic message. */
 const EDGE_FN_SETUP_HINT =
-  "Supabase could not reach the payment backend. Deploy the Edge Function create-razorpay-order to this same project, then add secrets RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (Dashboard → Edge Functions → Secrets, or supabase secrets set …). Finally run: supabase functions deploy create-razorpay-order. Also confirm VITE_SUPABASE_URL matches that project and try without VPN/ad-blockers.";
+  "Supabase could not reach the payment backend. Deploy create-razorpay-order and set RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET on Edge secrets.";
 
 const EDGE_FN_NON_2XX_FALLBACK =
-  "The payment Edge Function returned an error. Open Dashboard → Edge Functions → create-razorpay-order → Logs. Important: Razorpay secrets must be set on Supabase (Edge Function secrets), not only in your local .env — add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET there, then redeploy: supabase functions deploy create-razorpay-order.";
+  "Payment backend error — check Edge Function logs and Supabase secrets for Razorpay.";
 
 function subscriptionEndIso() {
   return new Date(Date.now() + SUBSCRIPTION_MS).toISOString();
 }
 
-/**
- * When invoke fails, Supabase often leaves `data` null and only sets a generic error message.
- * For HTTP errors, the JSON body is on error.context (Response) — see Supabase docs.
- * @param {unknown} orderFnErr
- * @param {unknown} orderData
- */
 async function resolveInvokeFailureMessage(orderFnErr, orderData) {
   if (
     orderData &&
@@ -51,7 +46,7 @@ async function resolveInvokeFailureMessage(orderFnErr, orderData) {
 
   if (ctx instanceof Response) {
     if (ctx.status === 401) {
-      return "Session rejected (401). Log out, log in again, then retry — or check Edge Function logs.";
+      return "Session rejected (401). Log out and sign in again.";
     }
     try {
       const ct = (ctx.headers.get("Content-Type") || "").toLowerCase();
@@ -63,7 +58,7 @@ async function resolveInvokeFailureMessage(orderFnErr, orderData) {
         }
       }
     } catch {
-      /* ignore parse errors */
+      /* ignore */
     }
   }
 
@@ -81,11 +76,44 @@ async function resolveInvokeFailureMessage(orderFnErr, orderData) {
   return clientMsg || EDGE_FN_NON_2XX_FALLBACK;
 }
 
+function LockIcon() {
+  return (
+    <div
+      className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-orange-100 shadow-inner ring-4 ring-orange-200/90"
+      aria-hidden
+    >
+      <svg
+        className="h-12 w-12 text-[#f97316]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+        />
+      </svg>
+    </div>
+  );
+}
+
+const shellFont = { fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif' };
+
 export default function Paywall() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState("");
+
+  const reason =
+    location.state?.reason === "trial_expired"
+      ? "trial_expired"
+      : location.state?.reason === "subscription_expired"
+        ? "subscription_expired"
+        : null;
 
   const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID?.trim();
 
@@ -105,6 +133,11 @@ export default function Paywall() {
     },
     [user?.id]
   );
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    navigate("/login", { replace: true });
+  }
 
   async function openCheckout(kind) {
     setError("");
@@ -126,7 +159,7 @@ export default function Paywall() {
       sbUrl.includes("YOUR_PROJECT")
     ) {
       setError(
-        "Set VITE_SUPABASE_URL in .env to your real Supabase Project URL (Dashboard → Settings → API), restart the dev server, and try again."
+        "Set VITE_SUPABASE_URL in .env to your Supabase Project URL, restart the dev server, and try again."
       );
       return;
     }
@@ -166,7 +199,10 @@ export default function Paywall() {
       handler: async () => {
         try {
           await applyPaidPlan(plan_type, restaurant_limit);
-          navigate("/dashboard", { replace: true });
+          navigate("/dashboard", {
+            replace: true,
+            state: { toast: "Access restored! Welcome back 🎉" },
+          });
         } catch (e) {
           setError(e?.message || "Could not activate your plan. Contact support.");
         } finally {
@@ -194,139 +230,115 @@ export default function Paywall() {
     rz.open();
   }
 
+  const heading =
+    reason === "trial_expired"
+      ? "Your free trial has ended"
+      : reason === "subscription_expired"
+        ? "Your subscription has expired"
+        : "Renew your access";
+
+  const subtext =
+    reason === "trial_expired"
+      ? "Upgrade to keep growing your Google ratings"
+      : reason === "subscription_expired"
+        ? "Renew now to regain full access to your dashboard"
+        : "Choose a plan to continue using ReviewBoost";
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/70 to-stone-50">
-      <header className="border-b border-stone-200/80 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <Link
-            to="/dashboard"
-            aria-label="Back to dashboard"
-            className="flex shrink-0 items-center rounded-lg transition hover:opacity-90"
-          >
-            <LogoDark size="nav" />
-          </Link>
-          <Link
-            to="/dashboard"
-            className="text-sm font-semibold text-stone-700 transition hover:text-[#f97316]"
-          >
-            ← Dashboard
-          </Link>
-        </div>
+    <div
+      className="flex min-h-screen flex-col bg-gradient-to-b from-stone-100 via-stone-50 to-white"
+      style={shellFont}
+    >
+      <header className="border-b border-stone-200/90 bg-white/95 py-4 text-center shadow-sm">
+        <Link to="/" className="inline-block" aria-label="ReviewBoost home">
+          <LogoDark size="nav" />
+        </Link>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-center text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">
-          Choose your plan
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-center text-stone-600">
-          Unlock more locations with a monthly subscription. Payments open in a secure Razorpay window.
-        </p>
+      <main className="flex flex-1 flex-col px-4 py-10 sm:px-6 sm:py-14">
+        <div className="mx-auto w-full max-w-5xl flex-1">
+          <LockIcon />
 
-        {error ? (
-          <div
-            className="mx-auto mt-8 max-w-xl rounded-2xl bg-red-50 px-4 py-4 text-left text-sm leading-relaxed text-red-700 ring-1 ring-red-100"
-            role="alert"
-          >
-            {error}
-          </div>
-        ) : null}
+          <h1 className="mt-8 text-center text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">
+            {heading}
+          </h1>
+          <p className="mx-auto mt-3 max-w-lg text-center text-base leading-relaxed text-stone-600">
+            {subtext}
+          </p>
 
-        <div className="mx-auto mt-10 grid max-w-3xl gap-6 sm:grid-cols-2">
-          <div className="flex flex-col rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
-            <h2 className="text-lg font-bold text-stone-900">Starter</h2>
-            <p className="mt-1 text-sm font-medium text-stone-500">
-              Perfect for single restaurants
-            </p>
-            <p className="mt-4 text-3xl font-bold tabular-nums text-stone-900">
-              ₹499<span className="text-lg font-semibold text-stone-500">/mo</span>
-            </p>
-            <ul className="mt-6 flex flex-col gap-2.5 text-sm text-stone-600">
-              <li className="flex gap-2">
-                <span className="text-emerald-600" aria-hidden>
-                  ✓
-                </span>
-                Up to 3 restaurants
-              </li>
-              <li className="flex gap-2">
-                <span className="text-emerald-600" aria-hidden>
-                  ✓
-                </span>
-                Smart review filtering
-              </li>
-              <li className="flex gap-2">
-                <span className="text-emerald-600" aria-hidden>
-                  ✓
-                </span>
-                QR codes + PDF download
-              </li>
-              <li className="flex gap-2">
-                <span className="text-emerald-600" aria-hidden>
-                  ✓
-                </span>
-                Email notifications
-              </li>
-              <li className="flex gap-2">
-                <span className="text-emerald-600" aria-hidden>
-                  ✓
-                </span>
-                Dashboard access
-              </li>
-            </ul>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={() => openCheckout("starter")}
-              className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-md transition hover:bg-[#ea580c] disabled:opacity-60"
+          {error ? (
+            <div
+              className="mx-auto mt-8 max-w-xl rounded-2xl bg-red-50 px-4 py-4 text-left text-sm leading-relaxed text-red-800 ring-1 ring-red-100"
+              role="alert"
             >
-              {busy === "starter" ? "Opening checkout…" : "Choose Starter - ₹499"}
-            </button>
+              {error}
+            </div>
+          ) : null}
+
+          <div className="mx-auto mt-12 grid max-w-5xl gap-8 md:grid-cols-2 md:items-stretch">
+            <article className="flex flex-col rounded-3xl border border-stone-200 bg-white p-7 shadow-lg transition duration-200 hover:-translate-y-0.5 hover:shadow-xl md:p-8">
+              <h2 className="text-xl font-bold text-stone-900">Starter</h2>
+              <p className="mt-3 text-3xl font-bold text-stone-900">
+                ₹499<span className="text-lg font-semibold text-stone-500">/month</span>
+              </p>
+              <div className="mt-6 flex-1">
+                <PlanFeatureChecklist items={FEATURES_STARTER} />
+              </div>
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => openCheckout("starter")}
+                className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-md transition hover:bg-[#ea580c] disabled:opacity-60"
+              >
+                {busy === "starter" ? "Opening checkout…" : "Renew Starter - ₹499"}
+              </button>
+            </article>
+
+            <article className="relative flex flex-col rounded-3xl border-2 border-[#f97316] bg-white p-7 shadow-xl transition duration-200 hover:-translate-y-0.5 hover:shadow-2xl md:p-8">
+              <span className="absolute right-4 top-4 rounded-full bg-[#f97316] px-3 py-1 text-xs font-semibold text-white shadow-md">
+                Most Popular
+              </span>
+              <h2 className="pr-28 text-xl font-bold text-stone-900">Growth</h2>
+              <p className="mt-3 text-3xl font-bold text-stone-900">
+                ₹899<span className="text-lg font-semibold text-stone-500">/month</span>
+              </p>
+              <div className="mt-6 flex-1">
+                <PlanFeatureChecklist items={FEATURES_GROWTH} />
+              </div>
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => openCheckout("growth")}
+                className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-stone-900 px-4 text-sm font-semibold text-white shadow-lg transition hover:bg-stone-800 disabled:opacity-60"
+              >
+                {busy === "growth" ? "Opening checkout…" : "Renew Growth - ₹899"}
+              </button>
+            </article>
           </div>
 
-          <div className="relative flex flex-col rounded-2xl bg-gradient-to-b from-amber-50/90 to-white p-6 shadow-lg ring-2 ring-[#f97316]/55">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#f97316] px-3 py-1 text-xs font-semibold text-white shadow-md">
-              Most Popular
-            </span>
-            <h2 className="text-lg font-bold text-stone-900">Growth</h2>
-            <p className="mt-1 text-sm font-medium text-stone-500">
-              For restaurant chains
-            </p>
-            <p className="mt-4 text-3xl font-bold tabular-nums text-stone-900">
-              ₹899<span className="text-lg font-semibold text-stone-500">/mo</span>
-            </p>
-            <ul className="mt-6 flex flex-col gap-2.5 text-sm text-stone-600">
-              <li className="flex gap-2">
-                <span className="text-emerald-600" aria-hidden>
-                  ✓
-                </span>
-                Up to 10 restaurants
-              </li>
-              <li className="flex gap-2">
-                <span className="text-emerald-600" aria-hidden>
-                  ✓
-                </span>
-                Everything in Starter
-              </li>
-              <li className="flex gap-2">
-                <span className="font-semibold text-[#ea580c]" aria-hidden>
-                  ★
-                </span>
-                Priority support
-              </li>
-            </ul>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={() => openCheckout("growth")}
-              className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#f97316] px-4 text-sm font-semibold text-white shadow-md transition hover:bg-[#ea580c] disabled:opacity-60"
-            >
-              {busy === "growth" ? "Opening checkout…" : "Choose Growth - ₹899"}
-            </button>
-          </div>
+          <p className="mx-auto mt-10 max-w-xl text-center text-xs leading-relaxed text-stone-500">
+            Payments run in Razorpay Checkout. For production, verify charges with webhooks on your backend.
+          </p>
         </div>
 
-        <p className="mx-auto mt-10 max-w-xl text-center text-xs leading-relaxed text-stone-500">
-          For production, verify payments with Razorpay webhooks on your backend—client-only updates are not fraud-proof.
-        </p>
+        <footer className="mx-auto mt-auto w-full max-w-5xl pt-16 text-center">
+          <p className="text-sm text-stone-600">
+            Need help? Contact us at{" "}
+            <a
+              href="mailto:support@reviewboost.in"
+              className="font-semibold text-[#ea580c] hover:underline"
+            >
+              support@reviewboost.in
+            </a>
+          </p>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-4 text-sm font-medium text-stone-500 underline-offset-2 hover:text-stone-800 hover:underline"
+          >
+            Log out
+          </button>
+        </footer>
       </main>
     </div>
   );

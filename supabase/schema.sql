@@ -1,4 +1,5 @@
 -- ReviewBoost — run this SQL in Supabase SQL Editor after creating a project
+-- If only `profiles` is missing but restaurants/reviews exist: paste `supabase/quick_fix_profiles.sql` instead.
 -- TODO: Adjust RLS if you need stricter rules
 
 -- Restaurants owned by authenticated users
@@ -98,6 +99,11 @@ create policy "profiles_select_own"
 create policy "profiles_update_own"
   on public.profiles for update
   using (auth.uid() = id);
+
+-- Needed for client-side upsert when creating/updating the signed-in user's row
+create policy "profiles_insert_own"
+  on public.profiles for insert
+  with check (auth.uid() = id);
 
 create or replace function public.handle_new_user()
 returns trigger
