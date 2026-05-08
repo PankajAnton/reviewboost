@@ -8,67 +8,71 @@ const legalLinks = [
   { href: "/cookie-policy", label: "Cookie Policy" },
 ] as const;
 
+const mainNavLinks = [
+  { href: "/#features", label: "Product" },
+  { href: "/#pricing", label: "Pricing" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+] as const;
+
 export function Footer() {
   return (
     <footer className="border-t border-zinc-800 bg-zinc-950 py-12">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-          <div className="max-w-xs">
-            <Logo href="/" />
+        <div className="flex flex-col items-center gap-10 text-center md:flex-row md:items-start md:justify-between md:text-left">
+          <div className="max-w-xs md:mx-0">
+            <div className="flex justify-center md:justify-start">
+              <Logo href="/" />
+            </div>
             <p className="mt-3 text-sm leading-relaxed text-zinc-500">
               Turn Happy Customers Into 5-Star Reviews
             </p>
           </div>
-          <nav className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-zinc-500">
-            <Link
-              href="/#features"
-              className="cursor-pointer transition-all duration-200 hover:text-white"
-            >
-              Product
-            </Link>
-            <Link
-              href="/#pricing"
-              className="cursor-pointer transition-all duration-200 hover:text-white"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/about"
-              className="cursor-pointer transition-all duration-200 hover:text-white"
-            >
-              About
-            </Link>
-            <Link
-              href="/contact"
-              className="cursor-pointer transition-all duration-200 hover:text-white"
-            >
-              Contact
-            </Link>
+
+          <nav
+            aria-label="Main"
+            className="flex w-full max-w-sm flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-zinc-500 sm:max-w-none sm:gap-x-8 md:w-auto md:justify-end"
+          >
+            {mainNavLinks.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="cursor-pointer whitespace-nowrap py-1 transition-all duration-200 hover:text-white"
+              >
+                {label}
+              </Link>
+            ))}
           </nav>
         </div>
 
-        <div className="mt-8 flex flex-col gap-6 border-t border-zinc-800 pt-6 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-zinc-600">
+        <div className="mt-8 flex flex-col items-center gap-6 border-t border-zinc-800 pt-6 text-center md:flex-row md:items-start md:justify-between md:text-left">
+          <p className="text-sm text-zinc-600 md:max-w-[min(100%,260px)]">
             © 2024 ReviewBoost · Crafted for restaurateurs
           </p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-500 md:justify-end">
-            {legalLinks.flatMap((item, i) => [
-              ...(i > 0
-                ? [
-                    <span key={`sep-${item.href}`} className="text-zinc-700" aria-hidden>
-                      ·
-                    </span>,
-                  ]
-                : []),
-              <Link
-                key={item.href}
-                href={item.href}
-                className="cursor-pointer transition-all duration-200 hover:text-white"
-              >
-                {item.label}
-              </Link>,
-            ])}
-          </div>
+
+          <nav
+            aria-label="Legal"
+            className="flex w-full flex-col items-center gap-2.5 text-sm text-zinc-500 md:flex-1 md:max-w-md md:flex-row md:flex-wrap md:items-center md:justify-end md:gap-x-2 md:gap-y-2"
+          >
+            {legalLinks.map((item, i) => (
+              <span key={item.href} className="contents md:flex md:items-center">
+                {i > 0 ? (
+                  <span
+                    className="hidden text-zinc-700 md:inline md:mx-2"
+                    aria-hidden
+                  >
+                    ·
+                  </span>
+                ) : null}
+                <Link
+                  href={item.href}
+                  className="cursor-pointer whitespace-nowrap py-1 underline-offset-2 transition-all duration-200 hover:text-white"
+                >
+                  {item.label}
+                </Link>
+              </span>
+            ))}
+          </nav>
         </div>
       </div>
     </footer>
