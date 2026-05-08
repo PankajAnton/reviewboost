@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply min-h-screen bg-zinc-950 text-zinc-50 antialiased;
+}
+
+@keyframes hero-blob-float {
+  0%,
+  100% {
+    transform: translate(-50%, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -28px) scale(1.06);
+  }
+}
+
+.hero-blob {
+  animation: hero-blob-float 18s ease-in-out infinite;
+}
+
+.btn-orange-glow {
+  @apply relative overflow-hidden transition-all duration-200;
+}
+
+.btn-orange-glow::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(249, 115, 22, 0.35),
+    transparent 55%
+  );
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.btn-orange-glow:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}

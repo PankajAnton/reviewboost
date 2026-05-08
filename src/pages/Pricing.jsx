@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { LogoDark } from "../components/Logo.jsx";
+import SiteFooter from "../components/SiteFooter.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Pricing() {
@@ -134,6 +135,7 @@ export default function Pricing() {
           Paid plans are billed via Razorpay after you create an account. Trial includes one venue for 30 days with full product access.
         </p>
       </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:web": "npm run dev --prefix web",
+    "build:web": "npm run build --prefix web",
     "dev:host": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
@@ -13,6 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "jspdf": "^4.2.1",
+    "lucide-react": "^1.14.0",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",

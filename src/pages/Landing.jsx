@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { LogoDark } from "../components/Logo.jsx";
+import SiteFooter from "../components/SiteFooter.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const features = [
@@ -126,7 +127,10 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="mx-auto mt-16 grid max-w-5xl gap-6 sm:grid-cols-3">
+          <div
+            id="features"
+            className="mx-auto mt-16 grid max-w-5xl scroll-mt-24 gap-6 sm:grid-cols-3"
+          >
             {features.map((f) => (
               <article
                 key={f.title}
@@ -142,7 +146,10 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="border-t border-amber-100/80 bg-white/70 py-20">
+        <section
+          id="pricing"
+          className="scroll-mt-24 border-t border-amber-100/80 bg-white/70 py-20"
+        >
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl">
@@ -243,10 +250,9 @@ export default function Landing() {
           </div>
         </section>
 
-        <footer className="border-t border-stone-200/80 bg-stone-50 py-10 text-center text-sm text-stone-500">
-          <p>© {new Date().getFullYear()} ReviewBoost · Crafted for restaurateurs</p>
-        </footer>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }
