@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient.js";
 import CategoryStarRow from "../components/CategoryStarRow.jsx";
 import { LogoDark } from "../components/Logo.jsx";
+import TypewriterText from "../components/TypewriterText.jsx";
 import {
   resolvePromoterTemplates,
   roundOverallForLegacyStars,
@@ -45,6 +46,56 @@ async function notifyOwnerLowRatingSilently(supabase, reviewId) {
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Shown after 4–5★: sparkle + pencil while “AI prepares” suggestions */
+const PROMOTER_LOADING_MS = 1850;
+const PROMOTER_TYPEWRITER_STAGGER_MS = 420;
+const PROMOTER_CHAR_MS = 15;
+
+function SparklePencilIcon() {
+  return (
+    <div className="relative flex h-16 w-16 items-center justify-center" aria-hidden>
+      <span className="rb-ai-sparkle absolute text-3xl" aria-hidden>
+        ✨
+      </span>
+      <svg
+        className="rb-ai-pencil relative z-[1] h-8 w-8 text-[#ea580c]"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    </div>
+  );
+}
+
+function PromoterAILoading() {
+  return (
+    <div className="rounded-3xl bg-white p-8 text-center shadow-xl ring-1 ring-stone-200/70 sm:p-10">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-[#ea580c]">
+        Step 2
+      </p>
+      <div className="mt-6 flex flex-col items-center gap-5">
+        <SparklePencilIcon />
+        <div>
+          <p className="text-lg font-bold text-stone-900">Writing suggestions for you</p>
+          <p className="mt-2 text-sm text-stone-600">Just a moment…</p>
+        </div>
+        <div
+          className="flex h-1 w-full max-w-[220px] overflow-hidden rounded-full bg-stone-100"
+          role="progressbar"
+          aria-valuetext="Generating review ideas"
+        >
+          <div className="rb-ai-bar h-full w-full origin-left bg-gradient-to-r from-orange-200/0 via-[#f97316]/60 to-orange-200/0" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ProgressTrack({ phase }) {
   const step =
@@ -147,6 +198,8 @@ export default function ReviewPage() {
 
   /** rate | promoter | detractor | doneHigh | doneLow */
   const [phase, setPhase] = useState("rate");
+  /** idle | loading (AI “writing” delay) | cards (templates + typewriter) */
+  const [promoterUiPhase, setPromoterUiPhase] = useState("idle");
   /** Three shuffled promoter strings (name substituted) shown for 4–5★ flow */
   const [promoterDisplayTemplates, setPromoterDisplayTemplates] = useState([]);
   /** Index of preset card chosen in promoter flow (for highlight); draft holds editable text */
@@ -175,6 +228,7 @@ export default function ReviewPage() {
       setFeedbackService("");
       setFeedbackAtmosphere("");
       setActionError("");
+      setPromoterUiPhase("idle");
 
       if (!id?.trim()) {
         setLoadError("Review link is incomplete.");
@@ -237,12 +291,20 @@ export default function ReviewPage() {
       );
       const shuffled = [...pool].sort(() => Math.random() - 0.5);
       setPromoterDisplayTemplates(shuffled.slice(0, 3));
+      setPromoterUiPhase("loading");
       setPhase("promoter");
     } else {
       setPromoterDisplayTemplates([]);
+      setPromoterUiPhase("idle");
       setPhase("detractor");
     }
   }
+
+  useEffect(() => {
+    if (phase !== "promoter" || promoterUiPhase !== "loading") return undefined;
+    const t = window.setTimeout(() => setPromoterUiPhase("cards"), PROMOTER_LOADING_MS);
+    return () => window.clearTimeout(t);
+  }, [phase, promoterUiPhase]);
 
   async function submitDetractor() {
     if (!restaurant) return;
@@ -437,92 +499,104 @@ export default function ReviewPage() {
             ) : null}
 
             {phase === "promoter" && templates ? (
-              <div className="space-y-6 rounded-3xl bg-white p-6 shadow-xl ring-1 ring-stone-200/70 sm:p-8">
-                <div className="text-center">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-[#ea580c]">
-                    Step 2
-                  </p>
-                  <h2 className="mt-2 text-xl font-bold text-stone-900 sm:text-2xl">
-                    Pick a review that sounds like you
-                  </h2>
-                  <p className="mt-2 text-sm text-stone-600">
-                    Pick a starting point — then edit your review below before
-                    copying to Google.
-                  </p>
-                </div>
-
-                <div className="grid gap-3">
-                  {promoterDisplayTemplates.map((text, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setPromoterPresetIndex(idx);
-                        setPromoterDraft(text);
-                        setActionError("");
-                      }}
-                      className={`rounded-2xl px-5 py-4 text-left text-sm leading-relaxed shadow-md ring-2 transition hover:shadow-lg ${
-                        promoterPresetIndex === idx
-                          ? "scale-[1.02] bg-amber-50 ring-[#f97316]"
-                          : "bg-stone-50/90 ring-transparent ring-stone-200/80 hover:ring-[#f97316]/25"
-                      }`}
-                    >
-                      {text}
-                    </button>
-                  ))}
-                </div>
-
-                {promoterPresetIndex !== null ? (
-                  <label className="block">
-                    <span className="text-sm font-bold text-stone-800">
-                      Your review — edit freely
-                    </span>
-                    <textarea
-                      value={promoterDraft}
-                      onChange={(e) => setPromoterDraft(e.target.value)}
-                      rows={6}
-                      className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base leading-relaxed text-stone-900 shadow-sm outline-none transition focus:border-[#f97316] focus:ring-4 focus:ring-[#f97316]/18"
-                      placeholder="Your words will be copied to Google Maps…"
-                    />
-                    <p className="mt-2 text-xs text-stone-500">
-                      {promoterDraft.trim().length} characters
+              promoterUiPhase === "loading" ? (
+                <PromoterAILoading />
+              ) : (
+                <div className="space-y-6 rounded-3xl bg-white p-6 shadow-xl ring-1 ring-stone-200/70 sm:p-8">
+                  <div className="text-center">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-[#ea580c]">
+                      Step 2
                     </p>
-                  </label>
-                ) : (
-                  <p className="text-center text-sm text-stone-500">
-                    Tap a suggestion above to edit and paste.
-                  </p>
-                )}
+                    <h2 className="mt-2 text-xl font-bold text-stone-900 sm:text-2xl">
+                      Pick a review that sounds like you
+                    </h2>
+                    <p className="mt-2 text-sm text-stone-600">
+                      Pick a starting point — then edit your review below before copying to Google.
+                    </p>
+                  </div>
 
-                {actionError ? (
-                  <p className="text-sm font-medium text-red-600" role="alert">
-                    {actionError}
-                  </p>
-                ) : null}
+                  <div className="grid gap-3">
+                    {promoterDisplayTemplates.map((text, idx) => (
+                      <button
+                        key={`${idx}-${text.slice(0, 12)}`}
+                        type="button"
+                        onClick={() => {
+                          setPromoterPresetIndex(idx);
+                          setPromoterDraft(text);
+                          setActionError("");
+                        }}
+                        className={`min-h-[5.5rem] rounded-2xl px-5 py-4 text-left text-sm leading-relaxed shadow-md ring-2 transition hover:shadow-lg ${
+                          promoterPresetIndex === idx
+                            ? "scale-[1.02] bg-amber-50 ring-[#f97316]"
+                            : "bg-stone-50/90 ring-transparent ring-stone-200/80 hover:ring-[#f97316]/25"
+                        }`}
+                      >
+                        {promoterPresetIndex === idx ? (
+                          text
+                        ) : (
+                          <TypewriterText
+                            text={text}
+                            startDelay={idx * PROMOTER_TYPEWRITER_STAGGER_MS}
+                            charDelay={PROMOTER_CHAR_MS}
+                          />
+                        )}
+                      </button>
+                    ))}
+                  </div>
 
-                <button
-                  type="button"
-                  disabled={!promoterDraft.trim() || submitting}
-                  onClick={copyAndOpenMaps}
-                  className="flex min-h-[3rem] w-full items-center justify-center rounded-2xl bg-[#f97316] text-base font-bold text-white shadow-lg transition hover:bg-[#ea580c] disabled:opacity-50"
-                >
-                  {submitting ? "Working…" : "Copy & Open Google Maps"}
-                </button>
+                  {promoterPresetIndex !== null ? (
+                    <label className="block">
+                      <span className="text-sm font-bold text-stone-800">
+                        Your review — edit freely
+                      </span>
+                      <textarea
+                        value={promoterDraft}
+                        onChange={(e) => setPromoterDraft(e.target.value)}
+                        rows={6}
+                        className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base leading-relaxed text-stone-900 shadow-sm outline-none transition focus:border-[#f97316] focus:ring-4 focus:ring-[#f97316]/18"
+                        placeholder="Your words will be copied to Google Maps…"
+                      />
+                      <p className="mt-2 text-xs text-stone-500">
+                        {promoterDraft.trim().length} characters
+                      </p>
+                    </label>
+                  ) : (
+                    <p className="text-center text-sm text-stone-500">
+                      Tap a suggestion above to edit and paste.
+                    </p>
+                  )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPhase("rate");
-                    setPromoterDisplayTemplates([]);
-                    setPromoterPresetIndex(null);
-                    setPromoterDraft("");
-                    setActionError("");
-                  }}
-                  className="w-full rounded-2xl py-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-50 hover:text-stone-800"
-                >
-                  ← Adjust ratings
-                </button>
-              </div>
+                  {actionError ? (
+                    <p className="text-sm font-medium text-red-600" role="alert">
+                      {actionError}
+                    </p>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    disabled={!promoterDraft.trim() || submitting}
+                    onClick={copyAndOpenMaps}
+                    className="flex min-h-[3rem] w-full items-center justify-center rounded-2xl bg-[#f97316] text-base font-bold text-white shadow-lg transition hover:bg-[#ea580c] disabled:opacity-50"
+                  >
+                    {submitting ? "Working…" : "Copy & Open Google Maps"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhase("rate");
+                      setPromoterDisplayTemplates([]);
+                      setPromoterPresetIndex(null);
+                      setPromoterDraft("");
+                      setPromoterUiPhase("idle");
+                      setActionError("");
+                    }}
+                    className="w-full rounded-2xl py-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-50 hover:text-stone-800"
+                  >
+                    ← Adjust ratings
+                  </button>
+                </div>
+              )
             ) : null}
 
             {phase === "detractor" ? (

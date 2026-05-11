@@ -18,3 +18,53 @@ html {
 body {
   @apply font-sans antialiased text-stone-800 bg-stone-50;
 }
+
+/* Review page — AI “writing” loading (sparkle / pencil / bar) */
+@keyframes rb-sparkle {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92) rotate(-6deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05) rotate(6deg);
+  }
+}
+
+@keyframes rb-pencil {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(-5deg);
+  }
+  50% {
+    transform: translate(2px, -3px) rotate(5deg);
+  }
+}
+
+@keyframes rb-bar {
+  0% {
+    transform: translateX(-80%);
+  }
+  100% {
+    transform: translateX(80%);
+  }
+}
+
+.rb-ai-sparkle {
+  animation: rb-sparkle 1.4s ease-in-out infinite;
+}
+.rb-ai-pencil {
+  animation: rb-pencil 1.1s ease-in-out infinite;
+}
+.rb-ai-bar {
+  animation: rb-bar 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rb-ai-sparkle,
+  .rb-ai-pencil,
+  .rb-ai-bar {
+    animation: none !important;
+  }
+}
