@@ -45,28 +45,28 @@ export function Footer() {
           </nav>
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-6 border-t border-zinc-800 pt-6 text-center md:flex-row md:items-start md:justify-between md:text-left">
-          <p className="text-sm text-zinc-600 md:max-w-[min(100%,260px)]">
-            © 2024 ReviewBoost · Crafted for restaurateurs
+        <div className="mt-8 flex flex-col items-center gap-6 border-t border-zinc-800 pt-6 text-center md:flex-row md:items-center md:justify-between md:gap-8 md:text-left">
+          <p className="text-pretty text-sm text-zinc-600 max-md:max-w-[min(100%,20rem)]">
+            © 2026 ReviewBoost · Crafted for restaurateurs
           </p>
 
           <nav
             aria-label="Legal"
-            className="flex w-full flex-col items-center gap-2.5 text-sm text-zinc-500 md:flex-1 md:max-w-md md:flex-row md:flex-wrap md:items-center md:justify-end md:gap-x-2 md:gap-y-2"
+            className="flex w-full flex-col items-center gap-3 text-sm text-zinc-500 md:w-auto md:flex-row md:flex-wrap md:items-center md:justify-end md:gap-y-2"
           >
             {legalLinks.map((item, i) => (
-              <span key={item.href} className="contents md:flex md:items-center">
+              <span
+                key={item.href}
+                className="inline-flex items-center whitespace-nowrap"
+              >
                 {i > 0 ? (
-                  <span
-                    className="hidden text-zinc-700 md:inline md:mx-2"
-                    aria-hidden
-                  >
+                  <span className="hidden pr-2 text-zinc-700 md:inline" aria-hidden>
                     ·
                   </span>
                 ) : null}
                 <Link
                   href={item.href}
-                  className="cursor-pointer whitespace-nowrap py-1 underline-offset-2 transition-all duration-200 hover:text-white"
+                  className="cursor-pointer py-1 underline-offset-2 transition-all duration-200 hover:text-white"
                 >
                   {item.label}
                 </Link>
