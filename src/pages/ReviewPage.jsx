@@ -47,53 +47,77 @@ async function notifyOwnerLowRatingSilently(supabase, reviewId) {
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Shown after 4–5★: sparkle + pencil while “AI prepares” suggestions */
-const PROMOTER_LOADING_MS = 1850;
+/** 4–5★: full-screen AI prep, then 300ms fade, then template cards + typewriter */
+const PROMOTER_LOADING_MS = 3500;
+const PROMOTER_FADE_OUT_MS = 300;
 const PROMOTER_TYPEWRITER_STAGGER_MS = 420;
 const PROMOTER_CHAR_MS = 15;
 
-function SparklePencilIcon() {
-  return (
-    <div className="relative flex h-16 w-16 items-center justify-center" aria-hidden>
-      <span className="rb-ai-sparkle absolute text-3xl" aria-hidden>
-        ✨
-      </span>
-      <svg
-        className="rb-ai-pencil relative z-[1] h-8 w-8 text-[#ea580c]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-      </svg>
-    </div>
-  );
-}
+const PROMOTER_LOADING_MESSAGES = [
+  "AI is writing your review... ✨",
+  "Analyzing your experience... 🔍",
+  "Crafting the perfect words... ✍️",
+  "Almost ready for you... 🎯",
+];
 
-function PromoterAILoading() {
+function PromoterAILoadingScreen({ cyclingActive }) {
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  useEffect(() => {
+    if (cyclingActive) setMsgIndex(0);
+  }, [cyclingActive]);
+
+  useEffect(() => {
+    if (!cyclingActive) return undefined;
+    let ticks = 0;
+    const id = window.setInterval(() => {
+      ticks += 1;
+      const last = PROMOTER_LOADING_MESSAGES.length - 1;
+      if (ticks > last) {
+        window.clearInterval(id);
+        return;
+      }
+      setMsgIndex(ticks);
+    }, 875);
+    return () => window.clearInterval(id);
+  }, [cyclingActive]);
+
   return (
-    <div className="rounded-3xl bg-white p-8 text-center shadow-xl ring-1 ring-stone-200/70 sm:p-10">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-[#ea580c]">
-        Step 2
-      </p>
-      <div className="mt-6 flex flex-col items-center gap-5">
-        <SparklePencilIcon />
-        <div>
-          <p className="text-lg font-bold text-stone-900">Writing suggestions for you</p>
-          <p className="mt-2 text-sm text-stone-600">Just a moment…</p>
-        </div>
+    <section
+      className="rounded-3xl bg-white p-8 text-center shadow-xl ring-1 ring-stone-200/70 sm:p-10"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <div className="flex flex-col items-center gap-4 sm:gap-5">
         <div
-          className="flex h-1 w-full max-w-[220px] overflow-hidden rounded-full bg-stone-100"
-          role="progressbar"
-          aria-valuetext="Generating review ideas"
+          className="rb-ai-icon-pulse inline-flex select-none items-center justify-center text-[48px] leading-none"
+          aria-hidden
         >
-          <div className="rb-ai-bar h-full w-full origin-left bg-gradient-to-r from-orange-200/0 via-[#f97316]/60 to-orange-200/0" />
+          ✨
+        </div>
+
+        <h2
+          key={msgIndex}
+          className="rb-ai-heading-fade max-w-md px-1 text-[22px] font-bold leading-snug text-[#0f0f0f]"
+        >
+          {PROMOTER_LOADING_MESSAGES[msgIndex]}
+        </h2>
+
+        <p className="max-w-sm px-2 text-[14px] leading-relaxed text-[#6b7280]">
+          Our AI is personalizing a review based on your ratings
+        </p>
+
+        <div
+          className="mt-1 h-[6px] w-full max-w-[280px] overflow-hidden rounded-[999px] bg-[#fed7aa]"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Preparing personalized review suggestions"
+        >
+          <div className="rb-ai-progress-fill h-full w-full rounded-[999px] bg-[#f97316]" />
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -198,7 +222,7 @@ export default function ReviewPage() {
 
   /** rate | promoter | detractor | doneHigh | doneLow */
   const [phase, setPhase] = useState("rate");
-  /** idle | loading (AI “writing” delay) | cards (templates + typewriter) */
+  /** idle | loading | fadeOut (300ms) | cards (templates + typewriter) */
   const [promoterUiPhase, setPromoterUiPhase] = useState("idle");
   /** Three shuffled promoter strings (name substituted) shown for 4–5★ flow */
   const [promoterDisplayTemplates, setPromoterDisplayTemplates] = useState([]);
@@ -302,7 +326,16 @@ export default function ReviewPage() {
 
   useEffect(() => {
     if (phase !== "promoter" || promoterUiPhase !== "loading") return undefined;
-    const t = window.setTimeout(() => setPromoterUiPhase("cards"), PROMOTER_LOADING_MS);
+    const t = window.setTimeout(() => setPromoterUiPhase("fadeOut"), PROMOTER_LOADING_MS);
+    return () => window.clearTimeout(t);
+  }, [phase, promoterUiPhase]);
+
+  useEffect(() => {
+    if (phase !== "promoter" || promoterUiPhase !== "fadeOut") return undefined;
+    const t = window.setTimeout(
+      () => setPromoterUiPhase("cards"),
+      PROMOTER_FADE_OUT_MS,
+    );
     return () => window.clearTimeout(t);
   }, [phase, promoterUiPhase]);
 
@@ -499,9 +532,7 @@ export default function ReviewPage() {
             ) : null}
 
             {phase === "promoter" && templates ? (
-              promoterUiPhase === "loading" ? (
-                <PromoterAILoading />
-              ) : (
+              promoterUiPhase === "cards" ? (
                 <div className="space-y-6 rounded-3xl bg-white p-6 shadow-xl ring-1 ring-stone-200/70 sm:p-8">
                   <div className="text-center">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-[#ea580c]">
@@ -595,6 +626,16 @@ export default function ReviewPage() {
                   >
                     ← Adjust ratings
                   </button>
+                </div>
+              ) : (
+                <div
+                  className={`transition-opacity duration-300 ease-out ${
+                    promoterUiPhase === "fadeOut"
+                      ? "pointer-events-none opacity-0"
+                      : "opacity-100"
+                  }`}
+                >
+                  <PromoterAILoadingScreen cyclingActive={promoterUiPhase === "loading"} />
                 </div>
               )
             ) : null}
