@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
-import QRCode from "qrcode";
+import { buildStyledQrDataUrl } from "./buildStyledQrDataUrl.js";
+import { normalizeQrStyleId } from "./qrStyleConfig.js";
 
 const ORANGE = [249, 115, 22]; // #f97316
 const ORANGE_STRIPE = [234, 88, 12]; // #ea580c
@@ -103,24 +104,19 @@ export async function downloadReviewBoostRestaurantPdf({
   restaurantName,
   reviewUrl,
   siteUrl,
+  qrStyle,
 }) {
   if (!reviewUrl?.trim()) {
     throw new Error("Review link missing - set VITE_PUBLIC_APP_URL and redeploy.");
   }
 
+  const style = normalizeQrStyleId(qrStyle);
   const [pageW, pageH] = a4PortraitPt();
   const topH = Math.round((pageH * 15) / 100);
   const botReserve = Math.round(pageH / 4);
   const midH = pageH - topH - botReserve;
 
-  const qrPx = 800;
-  const qrDataUrl = await QRCode.toDataURL(reviewUrl.trim(), {
-    width: qrPx,
-    margin: 2,
-    errorCorrectionLevel: "H",
-    color: { dark: "#0f0f0f", light: "#ffffff" },
-    type: "image/png",
-  });
+  const qrDataUrl = await buildStyledQrDataUrl(reviewUrl, style);
 
   const doc = new jsPDF({
     orientation: "portrait",

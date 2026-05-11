@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "../lib/supabaseClient.js";
 import { getPublicAppBaseUrl, getReviewPageUrlForQr } from "../lib/appBaseUrl.js";
 import { normalizeOwnerPlan, planUsageBannerLine } from "../lib/plans.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { LogoDark } from "../components/Logo.jsx";
 import DashboardPlanBanners from "../components/DashboardPlanBanners.jsx";
+import { QrStylePicker } from "../components/QrStylePicker.jsx";
+import { StyledReviewQr } from "../components/StyledReviewQr.jsx";
+import {
+  getStoredQrStyle,
+  normalizeQrStyleId,
+  setStoredQrStyle,
+} from "../lib/qrStyleConfig.js";
 import { getDashboardAccessDecision } from "../lib/subscriptionAccess.js";
 import { isProfilesTableUnavailable } from "../lib/supabaseErrors.js";
 import {
@@ -82,6 +88,21 @@ export default function Dashboard() {
   const [ownerPlan, setOwnerPlan] = useState(() => normalizeOwnerPlan(null));
   const [profileSetupNeeded, setProfileSetupNeeded] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [qrStylesById, setQrStylesById] = useState({});
+
+  useEffect(() => {
+    setQrStylesById((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const r of restaurants) {
+        if (next[r.id] === undefined) {
+          next[r.id] = getStoredQrStyle(r.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [restaurants]);
 
   useEffect(() => {
     const t = location.state?.toast;
@@ -314,6 +335,7 @@ export default function Dashboard() {
         restaurantName: r.name,
         reviewUrl,
         siteUrl: getPublicAppBaseUrl() || window.location.origin,
+        qrStyle: normalizeQrStyleId(qrStylesById[r.id] ?? getStoredQrStyle(r.id)),
       });
     } catch (err) {
       alert(err?.message || "Could not generate PDF. Try again.");
@@ -862,13 +884,12 @@ export default function Dashboard() {
                         <div className="flex justify-center">
                           <div className="rounded-2xl bg-white p-3 shadow-md ring-1 ring-stone-100">
                             {scanUrl ? (
-                              <QRCodeSVG
+                              <StyledReviewQr
                                 value={scanUrl}
+                                styleId={normalizeQrStyleId(
+                                  qrStylesById[r.id] ?? getStoredQrStyle(r.id),
+                                )}
                                 size={140}
-                                level="M"
-                                includeMargin
-                                bgColor="#ffffff"
-                                fgColor="#1c1917"
                               />
                             ) : (
                               <div className="flex size-[140px] flex-col items-center justify-center gap-2 rounded-xl bg-stone-100 p-3 text-center text-xs font-medium text-stone-600">
@@ -878,6 +899,22 @@ export default function Dashboard() {
                             )}
                           </div>
                         </div>
+
+                        {scanUrl ? (
+                          <QrStylePicker
+                            scanUrl={scanUrl}
+                            selectedId={normalizeQrStyleId(
+                              qrStylesById[r.id] ?? getStoredQrStyle(r.id),
+                            )}
+                            onSelect={(styleId) => {
+                              setStoredQrStyle(r.id, styleId);
+                              setQrStylesById((prev) => ({
+                                ...prev,
+                                [r.id]: styleId,
+                              }));
+                            }}
+                          />
+                        ) : null}
 
                         <div className="flex w-full max-w-md flex-col gap-3">
                           <button
