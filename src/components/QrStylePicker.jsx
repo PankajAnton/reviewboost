@@ -20,7 +20,7 @@ export function QrStylePicker({ scanUrl, selectedId, onSelect }) {
   const sel = normalizeQrStyleId(selectedId);
 
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full min-w-0 max-w-md">
       <p className="text-center text-xs font-semibold tracking-wide text-stone-700">
         QR Code Style
       </p>

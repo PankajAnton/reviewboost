@@ -13,6 +13,19 @@ import {
   hasSubmittedReviewOnDevice,
   markRestaurantReviewSubmitted,
 } from "../lib/reviewDeviceLock.js";
+import { randomUuidV4 } from "../lib/randomUuid.js";
+
+async function invokeSendLowRatingEmail(supabase, reviewId, dashboardOriginBase) {
+  return supabase.functions.invoke("send-low-rating-email", {
+    body: {
+      review_id: reviewId,
+      ...(dashboardOriginBase ? { dashboard_origin: dashboardOriginBase } : {}),
+    },
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+}
 
 async function notifyOwnerLowRatingSilently(supabase, reviewId) {
   try {
@@ -20,20 +33,38 @@ async function notifyOwnerLowRatingSilently(supabase, reviewId) {
       getPublicAppBaseUrl() ||
       (typeof window !== "undefined" ? window.location.origin : "");
     const base = dashboardOrigin.trim().replace(/\/$/, "");
-    const { data, error } = await supabase.functions.invoke(
-      "send-low-rating-email",
-      {
-        body: {
-          review_id: reviewId,
-          ...(base ? { dashboard_origin: base } : {}),
-        },
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
+
+    const attempt = () => invokeSendLowRatingEmail(supabase, reviewId, base);
+    let { data, error } = await attempt();
+
+    const looksLikeNotReady =
+      data?.error === "Review not found" ||
+      (typeof error?.message === "string" && error.message.includes("404"));
+
+    if (looksLikeNotReady) {
+      await new Promise((r) => setTimeout(r, 450));
+      ({ data, error } = await attempt());
+    }
+
     if (import.meta.env.DEV) {
       console.debug("[ReviewBoost] send-low-rating-email", { data, error });
+      if (data?.skipped) {
+        console.info(
+          "[ReviewBoost] Low rating email skipped by server:",
+          data.skipped,
+        );
+      }
+      if (data?.ok === true) {
+        console.info("[ReviewBoost] Low rating alert email sent (ok).");
+      }
+    }
+
+    if (data?.error) {
+      console.error(
+        "[ReviewBoost] Low rating email:",
+        data.error,
+        data.detail ? String(data.detail).slice(0, 500) : "",
+      );
     }
     if (error) {
       console.error("Low rating email notify failed:", error.message ?? error);
@@ -344,12 +375,9 @@ export default function ReviewPage() {
     setActionError("");
     setSubmitting(true);
     const avg = (food + service + atmosphere) / 3;
-    const reviewId =
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : undefined;
+    const reviewId = randomUuidV4();
     const row = {
-      ...(reviewId ? { id: reviewId } : {}),
+      id: reviewId,
       restaurant_id: restaurant.id,
       stars: roundOverallForLegacyStars(avg),
       food_stars: food,
@@ -378,7 +406,7 @@ export default function ReviewPage() {
     }
     markRestaurantReviewSubmitted(restaurant.id);
     setPhase("doneLow");
-    if (reviewId && avg <= 3) {
+    if (avg <= 3) {
       void notifyOwnerLowRatingSilently(supabase, reviewId);
     }
   }

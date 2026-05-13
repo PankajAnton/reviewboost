@@ -453,13 +453,13 @@ export default function Dashboard() {
     !loadingData && restaurants.length >= ownerPlan.restaurant_limit;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/60 to-stone-50">
+    <div className="min-h-screen min-w-0 bg-gradient-to-b from-amber-50/60 to-stone-50">
       {toastMessage ? (
         <div
-          className="sticky top-0 z-50 border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-950 shadow-sm sm:px-6"
+          className="sticky top-0 z-50 border-b border-emerald-200 bg-emerald-50 px-4 py-3 ps-[max(1rem,env(safe-area-inset-left,0px))] pe-[max(1rem,env(safe-area-inset-right,0px))] text-center text-sm font-semibold text-emerald-950 shadow-sm sm:px-6 sm:ps-[max(1.5rem,env(safe-area-inset-left,0px))] sm:pe-[max(1.5rem,env(safe-area-inset-right,0px))]"
           role="status"
         >
-          <div className="mx-auto flex max-w-5xl items-center justify-center gap-3">
+          <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-center gap-3">
             <span>{toastMessage}</span>
             <button
               type="button"
@@ -475,7 +475,7 @@ export default function Dashboard() {
         <DashboardPlanBanners ownerPlan={ownerPlan} />
       ) : null}
       <header className="border-b border-stone-200/80 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6">
+        <div className="mx-auto w-full max-w-5xl px-4 py-4 ps-[max(1rem,env(safe-area-inset-left,0px))] pe-[max(1rem,env(safe-area-inset-right,0px))] sm:px-6 sm:ps-[max(1.5rem,env(safe-area-inset-left,0px))] sm:pe-[max(1.5rem,env(safe-area-inset-right,0px))]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
               to="/"
@@ -538,7 +538,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+      <main className="mx-auto w-full min-w-0 max-w-5xl px-4 py-8 ps-[max(1rem,env(safe-area-inset-left,0px))] pe-[max(1rem,env(safe-area-inset-right,0px))] sm:px-6 sm:py-12 sm:ps-[max(1.5rem,env(safe-area-inset-left,0px))] sm:pe-[max(1.5rem,env(safe-area-inset-right,0px))]">
         <h1 className="text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">
           Owner dashboard
         </h1>
@@ -548,7 +548,7 @@ export default function Dashboard() {
 
         {!loadingData && !dataError ? (
           <section
-            className="mt-8 rounded-3xl border border-stone-200/90 bg-white p-6 shadow-sm ring-1 ring-stone-100 sm:p-8"
+            className="mt-8 min-w-0 rounded-3xl border border-stone-200/90 bg-white p-6 shadow-sm ring-1 ring-stone-100 sm:p-8"
             style={{
               backgroundImage: "radial-gradient(#e7e5e4 1px, transparent 1px)",
               backgroundSize: "14px 14px",
@@ -703,8 +703,8 @@ export default function Dashboard() {
           </section>
         ) : null}
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-2">
-          <section className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
+        <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-2">
+          <section className="min-w-0 rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
             <h2 className="text-lg font-semibold text-stone-900">
               Add restaurant
             </h2>
@@ -787,7 +787,7 @@ export default function Dashboard() {
             )}
           </section>
 
-          <section className="rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
+          <section className="min-w-0 rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
             <h2 className="text-lg font-semibold text-stone-900">
               Your QR codes
             </h2>
@@ -820,7 +820,7 @@ export default function Dashboard() {
                   return (
                     <li
                       key={r.id}
-                      className={`rounded-2xl p-5 ring-1 transition sm:p-6 ${
+                      className={`min-w-0 rounded-2xl p-5 ring-1 transition sm:p-6 ${
                         highlight
                           ? "bg-amber-50/80 ring-[#f97316]/50 shadow-md"
                           : "bg-stone-50/50 ring-stone-200/80"
@@ -983,7 +983,7 @@ export default function Dashboard() {
           </section>
         </div>
 
-        <section className="mt-12 rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
+        <section className="mt-12 min-w-0 rounded-2xl bg-white p-6 shadow-md ring-1 ring-stone-200/80">
           <h2 className="text-lg font-semibold text-stone-900">Feedback</h2>
           <p className="mt-1 text-sm text-stone-600">
             Filter by venue and type — delete entries you don&apos;t need.

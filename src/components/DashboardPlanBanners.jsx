@@ -138,7 +138,7 @@ export default function DashboardPlanBanners({ ownerPlan }) {
   if (blocks.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-3 border-b border-stone-200/80 bg-white/95 px-4 py-4 sm:px-6">
+    <div className="flex flex-col gap-3 border-b border-stone-200/80 bg-white/95 px-4 py-4 ps-[max(1rem,env(safe-area-inset-left,0px))] pe-[max(1rem,env(safe-area-inset-right,0px))] sm:px-6 sm:ps-[max(1.5rem,env(safe-area-inset-left,0px))] sm:pe-[max(1.5rem,env(safe-area-inset-right,0px))]">
       {blocks}
     </div>
   );
