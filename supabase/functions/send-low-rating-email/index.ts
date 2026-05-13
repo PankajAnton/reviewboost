@@ -1,15 +1,21 @@
 /**
- * Sends owner alert via Resend when a review has average ≤ 3.
- * Invoked from the public review page after insert (service role + RESEND_API_KEY).
+ * Sends owner alert via Brevo (Sendinblue) when a review has average ≤ 3.
+ * Invoked from the public review page after insert (service role + BREVO_API_KEY).
  *
- * Secrets: RESEND_API_KEY, optional RESEND_FROM, optional PUBLIC_APP_URL (dashboard base).
+ * Secrets: BREVO_API_KEY (required), optional BREVO_SENDER_EMAIL / BREVO_SENDER_NAME,
+ * optional PUBLIC_APP_URL (dashboard base).
  *
- * Do NOT put RESEND_API_KEY in VITE_* — it would ship to every browser.
+ * Do NOT put BREVO_API_KEY in VITE_* — it would ship to every browser.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const ORANGE = "#f97316";
+
+const DEFAULT_BREVO_SENDER_EMAIL = "pankajtiwari.model@gmail.com";
+const DEFAULT_BREVO_SENDER_NAME = "ReviewBoost";
+
+const BREVO_SMTP_URL = "https://api.brevo.com/v3/smtp/email";
 
 type Body = {
   review_id?: string;
@@ -203,7 +209,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const resendKey = Deno.env.get("RESEND_API_KEY")?.trim();
+  const brevoKey = Deno.env.get("BREVO_API_KEY")?.trim();
 
   if (!supabaseUrl || !serviceKey) {
     console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
@@ -213,8 +219,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  if (!resendKey) {
-    console.error("RESEND_API_KEY not set");
+  if (!brevoKey) {
+    console.error("BREVO_API_KEY not set");
     return new Response(JSON.stringify({ error: "Email not configured" }), {
       status: 503,
       headers: { ...cors, "Content-Type": "application/json" },
@@ -336,11 +342,12 @@ Deno.serve(async (req) => {
   });
 
   const subject = `⚠️ New Low Rating at ${restaurantRow.name}`;
-  const from =
-    Deno.env.get("RESEND_FROM")?.trim() ??
-    "ReviewBoost <onboarding@resend.dev>";
+  const senderEmail =
+    Deno.env.get("BREVO_SENDER_EMAIL")?.trim() || DEFAULT_BREVO_SENDER_EMAIL;
+  const senderName =
+    Deno.env.get("BREVO_SENDER_NAME")?.trim() || DEFAULT_BREVO_SENDER_NAME;
 
-  const html = buildHtml({
+  const htmlContent = buildHtml({
     restaurantName: restaurantRow.name,
     food,
     service,
@@ -351,28 +358,43 @@ Deno.serve(async (req) => {
     dashboardUrl,
   });
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetch(BREVO_SMTP_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${resendKey}`,
+      accept: "application/json",
+      "api-key": brevoKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from,
-      to: [to],
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
       subject,
-      html,
+      htmlContent,
     }),
   });
 
   if (!res.ok) {
     const detail = await res.text();
-    console.error("Resend error", res.status, detail);
-    return new Response(JSON.stringify({ error: "Resend failed", detail }), {
-      status: 502,
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
+    console.error("Brevo error", res.status, detail, "recipient:", to);
+    const hint =
+      "Confirm the sender email is added and verified under Brevo → Senders. Ensure BREVO_API_KEY has transactional/API permission.";
+    return new Response(
+      JSON.stringify({
+        error: "Brevo failed",
+        detail: detail.slice(0, 2000),
+        hint,
+      }),
+      {
+        status: 502,
+        headers: { ...cors, "Content-Type": "application/json" },
+      },
+    );
   }
+
+  console.info("Low rating alert sent", {
+    restaurant: restaurantRow.name,
+    toDomain: to.includes("@") ? to.split("@")[1] : "",
+  });
 
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
